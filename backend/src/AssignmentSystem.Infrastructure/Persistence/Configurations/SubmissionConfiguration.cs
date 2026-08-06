@@ -12,7 +12,9 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.HasKey(s => s.Id);
 
         builder.Property(s => s.Content).HasMaxLength(8000).IsRequired();
-        builder.Property(s => s.FileUrl).HasMaxLength(1000);
+        builder.Property(s => s.FileName).HasMaxLength(260);
+        builder.Property(s => s.StoredFileName).HasMaxLength(260);
+        builder.Property(s => s.FileContentType).HasMaxLength(150);
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(s => s.Feedback).HasMaxLength(4000);
         builder.Property(s => s.SubmittedAtUtc).IsRequired();

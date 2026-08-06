@@ -10,7 +10,10 @@ public class Submission : AuditableEntity
     public Guid StudentUserId { get; private set; }
     public User StudentUser { get; private set; } = null!;
     public string Content { get; private set; } = null!;
-    public string? FileUrl { get; private set; }
+    public string? FileName { get; private set; }
+    public string? StoredFileName { get; private set; }
+    public string? FileContentType { get; private set; }
+    public long? FileSizeBytes { get; private set; }
     public DateTime SubmittedAtUtc { get; private set; }
     public bool IsLate { get; private set; }
     public SubmissionStatus Status { get; private set; }
@@ -26,12 +29,18 @@ public class Submission : AuditableEntity
 
     private Submission() { }
 
-    private Submission(Guid id, Guid assignmentId, Guid studentUserId, string content, string? fileUrl, bool isLate, DateTime nowUtc)
+    private Submission(
+        Guid id, Guid assignmentId, Guid studentUserId, string content,
+        string? fileName, string? storedFileName, string? fileContentType, long? fileSizeBytes,
+        bool isLate, DateTime nowUtc)
     {
         AssignmentId = assignmentId;
         StudentUserId = studentUserId;
         Content = content;
-        FileUrl = fileUrl;
+        FileName = fileName;
+        StoredFileName = storedFileName;
+        FileContentType = fileContentType;
+        FileSizeBytes = fileSizeBytes;
         SubmittedAtUtc = nowUtc;
         IsLate = isLate;
         Status = isLate ? SubmissionStatus.LateSubmission : SubmissionStatus.Submitted;
@@ -42,7 +51,10 @@ public class Submission : AuditableEntity
         Guid assignmentId,
         Guid studentUserId,
         string content,
-        string? fileUrl,
+        string? fileName,
+        string? storedFileName,
+        string? fileContentType,
+        long? fileSizeBytes,
         DateTime assignmentDeadlineUtc,
         DateTime nowUtc)
     {
@@ -53,35 +65,60 @@ public class Submission : AuditableEntity
 
         var isLate = nowUtc > assignmentDeadlineUtc;
 
-        return Result.Success(new Submission(Guid.NewGuid(), assignmentId, studentUserId, content.Trim(), fileUrl, isLate, nowUtc));
+        return Result.Success(new Submission(
+            Guid.NewGuid(), assignmentId, studentUserId, content.Trim(),
+            fileName, storedFileName, fileContentType, fileSizeBytes, isLate, nowUtc));
     }
 
-    public Result Update(
-        string content, string? fileUrl, DateTime assignmentDeadlineUtc, AssignmentStatus assignmentStatus, DateTime nowUtc, Guid? actorUserId = null)
+    /// <summary>
+    /// Returns the previously stored file name if this update replaces it with a different attachment
+    /// (or removes it), so the caller can delete the now-orphaned file from storage. Returns null when
+    /// there is nothing to clean up.
+    /// </summary>
+    public Result<string?> Update(
+        string content,
+        bool replaceAttachment,
+        string? fileName,
+        string? storedFileName,
+        string? fileContentType,
+        long? fileSizeBytes,
+        DateTime assignmentDeadlineUtc,
+        AssignmentStatus assignmentStatus,
+        DateTime nowUtc,
+        Guid? actorUserId = null)
     {
         if (assignmentStatus is AssignmentStatus.Graded or AssignmentStatus.Archived)
         {
-            return Result.Failure("This assignment is closed and can no longer be updated.");
+            return Result.Failure<string?>("This assignment is closed and can no longer be updated.");
         }
 
         if (!EditableStatuses.Contains(Status))
         {
-            return Result.Failure("This submission can no longer be updated.");
+            return Result.Failure<string?>("This submission can no longer be updated.");
         }
 
         if (string.IsNullOrWhiteSpace(content))
         {
-            return Result.Failure("Submission content is required.");
+            return Result.Failure<string?>("Submission content is required.");
         }
 
         var wasReturned = Status == SubmissionStatus.Returned;
         var isLate = nowUtc > assignmentDeadlineUtc;
+        string? orphanedStoredFileName = null;
 
         Content = content.Trim();
-        FileUrl = fileUrl;
         SubmittedAtUtc = nowUtc;
         IsLate = isLate;
         Status = isLate ? SubmissionStatus.LateSubmission : SubmissionStatus.Submitted;
+
+        if (replaceAttachment && StoredFileName != storedFileName)
+        {
+            orphanedStoredFileName = StoredFileName;
+            FileName = fileName;
+            StoredFileName = storedFileName;
+            FileContentType = fileContentType;
+            FileSizeBytes = fileSizeBytes;
+        }
 
         if (wasReturned)
         {
@@ -92,7 +129,7 @@ public class Submission : AuditableEntity
         }
 
         TouchUpdated(nowUtc, actorUserId);
-        return Result.Success();
+        return Result.Success(orphanedStoredFileName);
     }
 
     public Result StartReview(DateTime nowUtc, Guid? actorUserId = null)

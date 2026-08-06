@@ -16,5 +16,25 @@ public static class TestClientExtensions
         return client;
     }
 
+    public static Task<HttpResponseMessage> PostSubmissionAsync(
+        this HttpClient client, Guid assignmentId, string content,
+        byte[]? fileBytes = null, string? fileName = null, string? fileContentType = null)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new StringContent(assignmentId.ToString()), "assignmentId" },
+            { new StringContent(content), "content" }
+        };
+
+        if (fileBytes is not null)
+        {
+            var fileContent = new ByteArrayContent(fileBytes);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileContentType ?? "application/octet-stream");
+            form.Add(fileContent, "file", fileName ?? "attachment.bin");
+        }
+
+        return client.PostAsync("/api/v1/submissions", form);
+    }
+
     private record LoginResponseBody(string AccessToken, string RefreshToken, string Role);
 }

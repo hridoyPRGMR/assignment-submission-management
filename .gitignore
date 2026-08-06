@@ -77,3 +77,7 @@ npm-debug.log*
 # Docker volumes
 postgres-data/
 
+# Uploaded submission files (never commit user-uploaded content)
+backend/src/AssignmentSystem.Api/wwwroot/uploads/*
+!backend/src/AssignmentSystem.Api/wwwroot/uploads/.gitkeep
+

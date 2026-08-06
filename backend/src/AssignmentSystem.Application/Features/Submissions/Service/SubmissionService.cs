@@ -1,3 +1,4 @@
+using AssignmentSystem.Application.Abstractions;
 using AssignmentSystem.Application.Abstractions.Persistence;
 using AssignmentSystem.Domain.Common;
 using AssignmentSystem.Domain.Enums;
@@ -11,6 +12,7 @@ public class SubmissionService(
     IAssignmentRepository assignmentRepository,
     IStudentEnrollmentRepository studentEnrollmentRepository,
     IUnitOfWork unitOfWork,
+    IFileStorageService fileStorageService,
     IValidator<CreateSubmissionInput> createValidator,
     IValidator<GradeSubmissionInput> gradeValidator,
     IValidator<ReturnSubmissionForRevisionInput> returnForRevisionValidator,
@@ -48,7 +50,9 @@ public class SubmissionService(
         }
 
         var submissionResult = Domain.Entities.Submission.Create(
-            input.AssignmentId, input.StudentUserId, input.Content, input.FileUrl, assignment.DeadlineUtc, DateTime.UtcNow);
+            input.AssignmentId, input.StudentUserId, input.Content,
+            input.FileName, input.StoredFileName, input.FileContentType, input.FileSizeBytes,
+            assignment.DeadlineUtc, DateTime.UtcNow);
 
         if (submissionResult.IsFailure)
         {
@@ -90,7 +94,8 @@ public class SubmissionService(
         }
 
         var updateResult = submission.Update(
-            input.Content, input.FileUrl, submission.Assignment.DeadlineUtc, submission.Assignment.Status, DateTime.UtcNow, input.RequestingStudentUserId);
+            input.Content, input.ReplaceAttachment, input.FileName, input.StoredFileName, input.FileContentType, input.FileSizeBytes,
+            submission.Assignment.DeadlineUtc, submission.Assignment.Status, DateTime.UtcNow, input.RequestingStudentUserId);
 
         if (updateResult.IsFailure)
         {
@@ -98,6 +103,11 @@ public class SubmissionService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (updateResult.Value is { } orphanedStoredFileName)
+        {
+            fileStorageService.Delete(orphanedStoredFileName);
+        }
 
         return Result.Success(submission.ToDto());
     }

@@ -27,6 +27,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public const string OtherTeacherPassword = "OtherTeacher@12345";
     public const string StudentEmail = "student@test.local";
     public const string StudentPassword = "Student@12345";
+    public const string OtherStudentEmail = "other.student@test.local";
+    public const string OtherStudentPassword = "OtherStudent@12345";
 
     public Guid ClassId { get; private set; }
     public Guid SubjectId { get; private set; }
@@ -86,8 +88,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         var teacher = User.Create(TeacherEmail, passwordHasher.Hash(TeacherPassword), "Test Teacher", UserRole.Teacher, now).Value;
         var otherTeacher = User.Create(OtherTeacherEmail, passwordHasher.Hash(OtherTeacherPassword), "Other Teacher", UserRole.Teacher, now).Value;
         var student = User.Create(StudentEmail, passwordHasher.Hash(StudentPassword), "Test Student", UserRole.Student, now).Value;
+        var otherStudent = User.Create(OtherStudentEmail, passwordHasher.Hash(OtherStudentPassword), "Other Student", UserRole.Student, now).Value;
 
-        dbContext.Users.AddRange(admin, teacher, otherTeacher, student);
+        dbContext.Users.AddRange(admin, teacher, otherTeacher, student, otherStudent);
 
         var schoolClass = Class.Create("Test Class", null, now).Value;
         var subject = Subject.Create("Test Subject", null, now).Value;

@@ -3,6 +3,7 @@ using AssignmentSystem.Application.Abstractions.Persistence;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using AssignmentSystem.Infrastructure.Security;
+using AssignmentSystem.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,7 @@ public static class DependencyInjection
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IFileStorageService, FileStorageService>();
 
         return services;
     }

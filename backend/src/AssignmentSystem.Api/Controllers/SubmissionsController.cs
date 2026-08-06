@@ -1,13 +1,16 @@
 using System.Security.Claims;
 using AssignmentSystem.Api.Common;
+using AssignmentSystem.Application.Abstractions;
+using AssignmentSystem.Application.Common;
 using AssignmentSystem.Application.Features.Submissions;
+using AssignmentSystem.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Controllers;
 
 [Authorize]
-public class SubmissionsController(ISubmissionService submissionService) : ApiControllerBase
+public class SubmissionsController(ISubmissionService submissionService, IFileStorageService fileStorageService) : ApiControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -30,20 +33,103 @@ public class SubmissionsController(ISubmissionService submissionService) : ApiCo
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
-    public async Task<IActionResult> CreateSubmission(CreateSubmissionRequest request, CancellationToken cancellationToken)
+    [RequestSizeLimit(SubmissionFileConstraints.MaxFileSizeBytes + 1024)]
+    public async Task<IActionResult> CreateSubmission(
+        [FromForm] Guid assignmentId, [FromForm] string content, IFormFile? file, CancellationToken cancellationToken)
     {
-        var input = new CreateSubmissionInput(CurrentUserId, request.AssignmentId, request.Content, request.FileUrl);
+        var fileValidationError = ValidateFile(file);
+        if (fileValidationError is not null)
+        {
+            return BadRequest(fileValidationError);
+        }
+
+        string? storedFileName = null;
+        if (file is not null)
+        {
+            await using var stream = file.OpenReadStream();
+            storedFileName = await fileStorageService.SaveAsync(stream, file.FileName, cancellationToken);
+        }
+
+        var input = new CreateSubmissionInput(
+            CurrentUserId, assignmentId, content,
+            file?.FileName, storedFileName, file?.ContentType, file?.Length);
+
         var result = await submissionService.CreateAsync(input, cancellationToken);
+
+        if (result.IsFailure && storedFileName is not null)
+        {
+            fileStorageService.Delete(storedFileName);
+        }
+
         return HandleResult(result);
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
-    public async Task<IActionResult> UpdateSubmission(Guid id, UpdateSubmissionRequest request, CancellationToken cancellationToken)
+    [RequestSizeLimit(SubmissionFileConstraints.MaxFileSizeBytes + 1024)]
+    public async Task<IActionResult> UpdateSubmission(
+        Guid id, [FromForm] string content, IFormFile? file, CancellationToken cancellationToken)
     {
-        var input = new UpdateSubmissionInput(id, CurrentUserId, request.Content, request.FileUrl);
+        var fileValidationError = ValidateFile(file);
+        if (fileValidationError is not null)
+        {
+            return BadRequest(fileValidationError);
+        }
+
+        string? storedFileName = null;
+        if (file is not null)
+        {
+            await using var stream = file.OpenReadStream();
+            storedFileName = await fileStorageService.SaveAsync(stream, file.FileName, cancellationToken);
+        }
+
+        var input = new UpdateSubmissionInput(
+            id, CurrentUserId, content, ReplaceAttachment: file is not null,
+            file?.FileName, storedFileName, file?.ContentType, file?.Length);
+
         var result = await submissionService.UpdateAsync(input, cancellationToken);
+
+        if (result.IsFailure && storedFileName is not null)
+        {
+            fileStorageService.Delete(storedFileName);
+        }
+
         return HandleResult(result);
+    }
+
+    [HttpGet("{id:guid}/file")]
+    public async Task<IActionResult> DownloadFile(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await submissionService.GetByIdAsync(id, cancellationToken);
+        if (result.IsFailure)
+        {
+            return NotFound();
+        }
+
+        var submission = result.Value;
+
+        var isOwner = User.IsInRole(UserRole.Student.ToString()) && submission.StudentUserId == CurrentUserId;
+        var isAdmin = User.IsInRole(UserRole.Admin.ToString());
+        var isOwningTeacher = User.IsInRole(UserRole.Teacher.ToString())
+            && (await submissionService.GetListForAssignmentAsync(submission.AssignmentId, CurrentUserId, isAdmin, cancellationToken)).IsSuccess;
+
+        if (!isOwner && !isAdmin && !isOwningTeacher)
+        {
+            return Forbid();
+        }
+
+        if (submission.StoredFileName is null || submission.FileName is null)
+        {
+            return NotFound();
+        }
+
+        if (!fileStorageService.Exists(submission.StoredFileName))
+        {
+            return NotFound();
+        }
+
+        var stream = fileStorageService.OpenRead(submission.StoredFileName);
+        return File(stream, submission.FileContentType ?? "application/octet-stream", submission.FileName);
     }
 
     [HttpPost("{id:guid}/start-review")]
@@ -71,11 +157,28 @@ public class SubmissionsController(ISubmissionService submissionService) : ApiCo
         var result = await submissionService.ReturnForRevisionAsync(input, cancellationToken);
         return HandleResult(result);
     }
+
+    private static string? ValidateFile(IFormFile? file)
+    {
+        if (file is null)
+        {
+            return null;
+        }
+
+        if (file.Length > SubmissionFileConstraints.MaxFileSizeBytes)
+        {
+            return $"File must be smaller than {SubmissionFileConstraints.MaxFileSizeBytes / (1024 * 1024)} MB.";
+        }
+
+        var extension = Path.GetExtension(file.FileName);
+        if (!SubmissionFileConstraints.AllowedExtensions.Contains(extension))
+        {
+            return $"File type not allowed. Allowed types: {string.Join(", ", SubmissionFileConstraints.AllowedExtensions)}.";
+        }
+
+        return null;
+    }
 }
-
-public record CreateSubmissionRequest(Guid AssignmentId, string Content, string? FileUrl);
-
-public record UpdateSubmissionRequest(string Content, string? FileUrl);
 
 public record GradeSubmissionRequest(int Marks, string Feedback);
 

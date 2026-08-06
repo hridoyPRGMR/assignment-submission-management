@@ -118,6 +118,16 @@ export default function TeacherSubmissionsPage() {
 
             <p className="mt-2 whitespace-pre-wrap text-neutral-700">{submission.content}</p>
 
+            {submission.fileName && submission.fileDownloadUrl && (
+              <button
+                type="button"
+                onClick={() => submissionsApi.downloadFile(submission.fileDownloadUrl!, submission.fileName!)}
+                className="mt-1 text-sm font-medium text-neutral-700 underline"
+              >
+                📎 {submission.fileName}
+              </button>
+            )}
+
             {expandedId === submission.id && (
               <form
                 onSubmit={handleSubmit((values) =>

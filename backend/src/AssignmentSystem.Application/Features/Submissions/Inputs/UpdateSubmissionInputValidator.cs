@@ -7,6 +7,6 @@ public class UpdateSubmissionInputValidator : AbstractValidator<UpdateSubmission
     public UpdateSubmissionInputValidator()
     {
         RuleFor(x => x.Content).NotEmpty().MaximumLength(8000);
-        RuleFor(x => x.FileUrl).MaximumLength(1000);
+        RuleFor(x => x.FileName).MaximumLength(260);
     }
 }

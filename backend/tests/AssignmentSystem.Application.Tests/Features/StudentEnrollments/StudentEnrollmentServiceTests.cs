@@ -79,7 +79,8 @@ public class StudentEnrollmentServiceTests
             "Homework", "Description", classEntity.Id, subject.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
         assignment.Publish(Now);
 
-        var submission = Submission.Create(assignment.Id, student.Id, "My answer", null, assignment.DeadlineUtc, Now).Value;
+        var submission = Submission.Create(
+            assignment.Id, student.Id, "My answer", null, null, null, null, assignment.DeadlineUtc, Now).Value;
         var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id, Now);
 
         dbContext.Classes.Add(classEntity);

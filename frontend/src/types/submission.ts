@@ -8,7 +8,10 @@ export interface Submission {
   studentUserId: string;
   studentFullName: string;
   content: string;
-  fileUrl: string | null;
+  fileName: string | null;
+  fileContentType: string | null;
+  fileSizeBytes: number | null;
+  fileDownloadUrl: string | null;
   submittedAtUtc: string;
   isLate: boolean;
   status: SubmissionStatus;

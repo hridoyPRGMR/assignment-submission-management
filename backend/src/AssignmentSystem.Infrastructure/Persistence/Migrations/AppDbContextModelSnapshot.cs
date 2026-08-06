@@ -284,9 +284,16 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
-                    b.Property<string>("FileUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                    b.Property<string>("FileContentType")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("GradedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -304,6 +311,10 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("StoredFileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)");
 
                     b.Property<Guid>("StudentUserId")
                         .HasColumnType("uuid");

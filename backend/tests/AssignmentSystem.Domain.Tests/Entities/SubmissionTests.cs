@@ -15,12 +15,13 @@ public class SubmissionTests
 
     private static Submission CreateValidSubmission(DateTime? deadline = null, DateTime? submittedAt = null) =>
         Submission.Create(
-            AssignmentId, StudentId, "My answer", null, deadline ?? Now.AddDays(1), submittedAt ?? Now).Value;
+            AssignmentId, StudentId, "My answer", null, null, null, null,
+            deadline ?? Now.AddDays(1), submittedAt ?? Now).Value;
 
     [Fact]
     public void Create_before_deadline_should_succeed_with_Submitted_status()
     {
-        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, Now.AddDays(1), Now);
+        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, null, null, null, Now.AddDays(1), Now);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(SubmissionStatus.Submitted);
@@ -32,7 +33,7 @@ public class SubmissionTests
     {
         var deadline = Now.AddDays(-1);
 
-        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, deadline, Now);
+        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, null, null, null, deadline, Now);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be(SubmissionStatus.LateSubmission);
@@ -42,9 +43,23 @@ public class SubmissionTests
     [Fact]
     public void Create_with_empty_content_should_fail()
     {
-        var result = Submission.Create(AssignmentId, StudentId, "   ", null, Now.AddDays(1), Now);
+        var result = Submission.Create(AssignmentId, StudentId, "   ", null, null, null, null, Now.AddDays(1), Now);
 
         result.IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Create_with_attachment_should_store_file_metadata()
+    {
+        var result = Submission.Create(
+            AssignmentId, StudentId, "My answer", "answer.pdf", "guid-123.pdf", "application/pdf", 2048,
+            Now.AddDays(1), Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.FileName.Should().Be("answer.pdf");
+        result.Value.StoredFileName.Should().Be("guid-123.pdf");
+        result.Value.FileContentType.Should().Be("application/pdf");
+        result.Value.FileSizeBytes.Should().Be(2048);
     }
 
     [Fact]
@@ -52,7 +67,9 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Published, Now);
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: false, null, null, null, null,
+            Now.AddDays(1), AssignmentStatus.Published, Now);
 
         result.IsSuccess.Should().BeTrue();
         submission.Content.Should().Be("Updated answer");
@@ -63,7 +80,9 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission(deadline: Now.AddHours(1));
 
-        var result = submission.Update("Updated answer", null, Now.AddHours(1), AssignmentStatus.Published, Now.AddHours(2));
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: false, null, null, null, null,
+            Now.AddHours(1), AssignmentStatus.Published, Now.AddHours(2));
 
         result.IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.LateSubmission);
@@ -75,7 +94,9 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Graded, Now);
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: false, null, null, null, null,
+            Now.AddDays(1), AssignmentStatus.Graded, Now);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -86,9 +107,45 @@ public class SubmissionTests
         var submission = CreateValidSubmission();
         submission.StartReview(Now);
 
-        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Published, Now);
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: false, null, null, null, null,
+            Now.AddDays(1), AssignmentStatus.Published, Now);
 
         result.IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Update_replacing_attachment_should_return_old_stored_file_name_for_cleanup()
+    {
+        var submission = Submission.Create(
+            AssignmentId, StudentId, "My answer", "old.pdf", "old-stored.pdf", "application/pdf", 100,
+            Now.AddDays(1), Now).Value;
+
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: true, "new.pdf", "new-stored.pdf", "application/pdf", 200,
+            Now.AddDays(1), AssignmentStatus.Published, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("old-stored.pdf");
+        submission.FileName.Should().Be("new.pdf");
+        submission.StoredFileName.Should().Be("new-stored.pdf");
+    }
+
+    [Fact]
+    public void Update_without_replacing_attachment_should_keep_existing_file_and_return_null()
+    {
+        var submission = Submission.Create(
+            AssignmentId, StudentId, "My answer", "old.pdf", "old-stored.pdf", "application/pdf", 100,
+            Now.AddDays(1), Now).Value;
+
+        var result = submission.Update(
+            "Updated answer", replaceAttachment: false, null, null, null, null,
+            Now.AddDays(1), AssignmentStatus.Published, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+        submission.FileName.Should().Be("old.pdf");
+        submission.StoredFileName.Should().Be("old-stored.pdf");
     }
 
     [Fact]
@@ -105,7 +162,8 @@ public class SubmissionTests
     [Fact]
     public void StartReview_from_LateSubmission_should_succeed()
     {
-        var submission = Submission.Create(AssignmentId, StudentId, "My answer", null, Now.AddDays(-1), Now).Value;
+        var submission = Submission.Create(
+            AssignmentId, StudentId, "My answer", null, null, null, null, Now.AddDays(-1), Now).Value;
 
         var result = submission.StartReview(Now);
 
@@ -212,7 +270,9 @@ public class SubmissionTests
         submission.Status.Should().Be(SubmissionStatus.Returned);
         submission.Marks.Should().BeNull();
 
-        submission.Update("Expanded answer", null, Now.AddDays(1), AssignmentStatus.Published, Now).IsSuccess.Should().BeTrue();
+        submission.Update(
+            "Expanded answer", replaceAttachment: false, null, null, null, null,
+            Now.AddDays(1), AssignmentStatus.Published, Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.Submitted);
     }
 }

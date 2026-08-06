@@ -1,4 +1,5 @@
 using AssignmentSystem.Application.Features.Submissions;
+using AssignmentSystem.Application.Tests.TestDoubles;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentAssertions;
@@ -16,6 +17,7 @@ public class CreateSubmissionCommandHandlerTests
             new AssignmentSystem.Infrastructure.Persistence.Repositories.AssignmentRepository(dbContext),
             new AssignmentSystem.Infrastructure.Persistence.Repositories.StudentEnrollmentRepository(dbContext),
             dbContext,
+            new InMemoryFileStorageService(),
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),
             new ReturnSubmissionForRevisionInputValidator(),
@@ -56,7 +58,7 @@ public class CreateSubmissionCommandHandlerTests
 
         var service = CreateService(dbContext);
         var result = await service.CreateAsync(
-            new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null), CancellationToken.None);
+            new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null, null, null, null), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not enrolled");
@@ -83,7 +85,7 @@ public class CreateSubmissionCommandHandlerTests
 
         var service = CreateService(dbContext);
         var result = await service.CreateAsync(
-            new CreateSubmissionInput(student.Id, draftAssignment.Id, "My answer", null), CancellationToken.None);
+            new CreateSubmissionInput(student.Id, draftAssignment.Id, "My answer", null, null, null, null), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -96,7 +98,7 @@ public class CreateSubmissionCommandHandlerTests
 
         var service = CreateService(dbContext);
         var result = await service.CreateAsync(
-            new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null), CancellationToken.None);
+            new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null, null, null, null), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("Submitted");
@@ -109,10 +111,10 @@ public class CreateSubmissionCommandHandlerTests
         var (assignment, student) = SeedPublishedAssignmentWithEnrolledStudent(dbContext);
 
         var service = CreateService(dbContext);
-        await service.CreateAsync(new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null), CancellationToken.None);
+        await service.CreateAsync(new CreateSubmissionInput(student.Id, assignment.Id, "My answer", null, null, null, null), CancellationToken.None);
 
         var result = await service.CreateAsync(
-            new CreateSubmissionInput(student.Id, assignment.Id, "Second attempt", null), CancellationToken.None);
+            new CreateSubmissionInput(student.Id, assignment.Id, "Second attempt", null, null, null, null), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("already submitted");

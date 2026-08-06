@@ -65,6 +65,9 @@ public static class DataSeeder
             student.Id,
             "Here is my proof for theorem 1: ...",
             null,
+            null,
+            null,
+            null,
             publishedAssignment.DeadlineUtc,
             now).Value;
 

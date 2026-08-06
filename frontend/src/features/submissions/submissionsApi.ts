@@ -1,6 +1,18 @@
 import { apiClient } from "@/lib/apiClient";
 import type { Submission } from "@/types/submission";
 
+export const ALLOWED_SUBMISSION_FILE_EXTENSIONS = [".pdf", ".docx", ".zip"];
+export const MAX_SUBMISSION_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
+function buildSubmissionForm(content: string, file?: File | null): FormData {
+  const form = new FormData();
+  form.append("content", content);
+  if (file) {
+    form.append("file", file);
+  }
+  return form;
+}
+
 export const submissionsApi = {
   async listMine(): Promise<Submission[]> {
     const response = await apiClient.get<Submission[]>("/submissions");
@@ -17,18 +29,27 @@ export const submissionsApi = {
     return response.status === 204 ? null : response.data;
   },
 
-  async create(input: {
-    assignmentId: string;
-    content: string;
-    fileUrl?: string;
-  }): Promise<Submission> {
-    const response = await apiClient.post<Submission>("/submissions", input);
+  async create(input: { assignmentId: string; content: string; file?: File | null }): Promise<Submission> {
+    const form = buildSubmissionForm(input.content, input.file);
+    form.append("assignmentId", input.assignmentId);
+    const response = await apiClient.post<Submission>("/submissions", form);
     return response.data;
   },
 
-  async update(id: string, input: { content: string; fileUrl?: string }): Promise<Submission> {
-    const response = await apiClient.put<Submission>(`/submissions/${id}`, input);
+  async update(id: string, input: { content: string; file?: File | null }): Promise<Submission> {
+    const form = buildSubmissionForm(input.content, input.file);
+    const response = await apiClient.put<Submission>(`/submissions/${id}`, form);
     return response.data;
+  },
+
+  async downloadFile(fileDownloadUrl: string, fileName: string): Promise<void> {
+    const response = await apiClient.get(fileDownloadUrl, { responseType: "blob" });
+    const url = URL.createObjectURL(response.data as Blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
   },
 
   async listForAssignment(assignmentId: string): Promise<Submission[]> {

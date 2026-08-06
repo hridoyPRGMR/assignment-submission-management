@@ -40,11 +40,7 @@ public class AssignmentWorkflowTests : IClassFixture<CustomWebApplicationFactory
         var studentClient = await _factory.CreateClient()
             .AuthenticateAsync(CustomWebApplicationFactory.StudentEmail, CustomWebApplicationFactory.StudentPassword);
 
-        var submitResponse = await studentClient.PostAsJsonAsync("/api/v1/submissions", new
-        {
-            assignmentId = createdAssignment.Id,
-            content = "Here is my answer",
-        });
+        var submitResponse = await studentClient.PostSubmissionAsync(createdAssignment.Id, "Here is my answer");
 
         submitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var submission = await submitResponse.Content.ReadFromJsonAsync<SubmissionBody>();
@@ -128,11 +124,7 @@ public class AssignmentWorkflowTests : IClassFixture<CustomWebApplicationFactory
         var studentClient = await _factory.CreateClient()
             .AuthenticateAsync(CustomWebApplicationFactory.StudentEmail, CustomWebApplicationFactory.StudentPassword);
 
-        var submitResponse = await studentClient.PostAsJsonAsync("/api/v1/submissions", new
-        {
-            assignmentId = createdAssignment.Id,
-            content = "Sorry this is late",
-        });
+        var submitResponse = await studentClient.PostSubmissionAsync(createdAssignment.Id, "Sorry this is late");
 
         submitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var submission = await submitResponse.Content.ReadFromJsonAsync<SubmissionBody>();

@@ -1,4 +1,5 @@
 using AssignmentSystem.Application.Features.Submissions;
+using AssignmentSystem.Application.Tests.TestDoubles;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ public class GradeSubmissionCommandHandlerTests
             new AssignmentRepository(dbContext),
             new StudentEnrollmentRepository(dbContext),
             dbContext,
+            new InMemoryFileStorageService(),
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),
             new ReturnSubmissionForRevisionInputValidator(),
@@ -35,7 +37,8 @@ public class GradeSubmissionCommandHandlerTests
             "Homework", "Description", classEntity.Id, subjectEntity.Id, owningTeacher.Id, Now.AddDays(7), 100, Now).Value;
         assignment.Publish(Now);
 
-        var submission = Submission.Create(assignment.Id, student.Id, "My answer", null, assignment.DeadlineUtc, Now).Value;
+        var submission = Submission.Create(
+            assignment.Id, student.Id, "My answer", null, null, null, null, assignment.DeadlineUtc, Now).Value;
 
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subjectEntity);

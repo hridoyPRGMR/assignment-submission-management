@@ -99,7 +99,7 @@ export default function TeacherSubmissionsPage() {
                 </p>
               </div>
               <div className="flex gap-2">
-                {submission.status === "Submitted" && (
+                {(submission.status === "Submitted" || submission.status === "LateSubmission") && (
                   <button
                     onClick={() => startReviewMutation.mutate(submission.id)}
                     className="text-sm font-medium text-neutral-700 underline"

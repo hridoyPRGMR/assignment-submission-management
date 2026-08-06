@@ -15,6 +15,7 @@ public static class AssignmentMappingExtensions
         assignment.DeadlineUtc,
         assignment.MaxMarks,
         assignment.Status.ToString(),
+        assignment.GetLifecycleStatus(DateTime.UtcNow).ToString(),
         assignment.CreatedAtUtc,
         assignment.UpdatedAtUtc);
 }

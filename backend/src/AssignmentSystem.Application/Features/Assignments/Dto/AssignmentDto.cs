@@ -13,5 +13,6 @@ public record AssignmentDto(
     DateTime DeadlineUtc,
     int MaxMarks,
     string Status,
+    string LifecycleStatus,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

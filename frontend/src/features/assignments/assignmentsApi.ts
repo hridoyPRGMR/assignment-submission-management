@@ -52,6 +52,16 @@ export const assignmentsApi = {
     return response.data;
   },
 
+  async markGraded(id: string): Promise<Assignment> {
+    const response = await apiClient.post<Assignment>(`/assignments/${id}/mark-graded`);
+    return response.data;
+  },
+
+  async archive(id: string): Promise<Assignment> {
+    const response = await apiClient.post<Assignment>(`/assignments/${id}/archive`);
+    return response.data;
+  },
+
   async remove(id: string): Promise<void> {
     await apiClient.delete(`/assignments/${id}`);
   },

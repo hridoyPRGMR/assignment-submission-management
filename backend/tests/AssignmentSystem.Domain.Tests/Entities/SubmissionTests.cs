@@ -28,14 +28,15 @@ public class SubmissionTests
     }
 
     [Fact]
-    public void Create_after_deadline_should_fail()
+    public void Create_after_deadline_should_succeed_with_LateSubmission_status()
     {
         var deadline = Now.AddDays(-1);
 
         var result = Submission.Create(AssignmentId, StudentId, "My answer", null, deadline, Now);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("deadline");
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(SubmissionStatus.LateSubmission);
+        result.Value.IsLate.Should().BeTrue();
     }
 
     [Fact]
@@ -51,21 +52,32 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.Update("Updated answer", null, Now.AddDays(1), Now);
+        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Published, Now);
 
         result.IsSuccess.Should().BeTrue();
         submission.Content.Should().Be("Updated answer");
     }
 
     [Fact]
-    public void Update_after_deadline_should_fail()
+    public void Update_after_deadline_should_succeed_and_mark_LateSubmission()
     {
         var submission = CreateValidSubmission(deadline: Now.AddHours(1));
 
-        var result = submission.Update("Updated answer", null, Now.AddHours(1), Now.AddHours(2));
+        var result = submission.Update("Updated answer", null, Now.AddHours(1), AssignmentStatus.Published, Now.AddHours(2));
+
+        result.IsSuccess.Should().BeTrue();
+        submission.Status.Should().Be(SubmissionStatus.LateSubmission);
+        submission.IsLate.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Update_while_assignment_Graded_should_fail()
+    {
+        var submission = CreateValidSubmission();
+
+        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Graded, Now);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("deadline");
     }
 
     [Fact]
@@ -74,7 +86,7 @@ public class SubmissionTests
         var submission = CreateValidSubmission();
         submission.StartReview(Now);
 
-        var result = submission.Update("Updated answer", null, Now.AddDays(1), Now);
+        var result = submission.Update("Updated answer", null, Now.AddDays(1), AssignmentStatus.Published, Now);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -83,6 +95,17 @@ public class SubmissionTests
     public void StartReview_from_Submitted_should_succeed()
     {
         var submission = CreateValidSubmission();
+
+        var result = submission.StartReview(Now);
+
+        result.IsSuccess.Should().BeTrue();
+        submission.Status.Should().Be(SubmissionStatus.UnderReview);
+    }
+
+    [Fact]
+    public void StartReview_from_LateSubmission_should_succeed()
+    {
+        var submission = Submission.Create(AssignmentId, StudentId, "My answer", null, Now.AddDays(-1), Now).Value;
 
         var result = submission.StartReview(Now);
 
@@ -140,11 +163,11 @@ public class SubmissionTests
     }
 
     [Fact]
-    public void Grade_a_ReturnedForRevision_submission_should_fail()
+    public void Grade_a_Returned_submission_should_fail()
     {
         var submission = CreateValidSubmission();
         submission.StartReview(Now);
-        submission.ReturnForRevision("Please redo section 2", Now);
+        submission.Return("Please redo section 2", Now);
 
         var result = submission.Grade(85, "Great job", MaxMarks, TeacherId, Now);
 
@@ -152,30 +175,30 @@ public class SubmissionTests
     }
 
     [Fact]
-    public void ReturnForRevision_from_UnderReview_should_succeed_and_clear_marks()
+    public void Return_from_UnderReview_should_succeed_and_clear_marks()
     {
         var submission = CreateValidSubmission();
         submission.StartReview(Now);
 
-        var result = submission.ReturnForRevision("Please redo section 2", Now);
+        var result = submission.Return("Please redo section 2", Now);
 
         result.IsSuccess.Should().BeTrue();
-        submission.Status.Should().Be(SubmissionStatus.ReturnedForRevision);
+        submission.Status.Should().Be(SubmissionStatus.Returned);
         submission.Marks.Should().BeNull();
     }
 
     [Fact]
-    public void ReturnForRevision_from_Submitted_should_fail()
+    public void Return_from_Submitted_should_fail()
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.ReturnForRevision("Please redo section 2", Now);
+        var result = submission.Return("Please redo section 2", Now);
 
         result.IsFailure.Should().BeTrue();
     }
 
     [Fact]
-    public void Full_state_machine_Submitted_to_UnderReview_to_Graded_to_ReturnedForRevision_to_Submitted()
+    public void Full_state_machine_Submitted_to_UnderReview_to_Graded_to_Returned_to_Submitted()
     {
         var submission = CreateValidSubmission();
 
@@ -185,11 +208,11 @@ public class SubmissionTests
         submission.Grade(90, "Nicely done", MaxMarks, TeacherId, Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.Graded);
 
-        submission.ReturnForRevision("Actually, please expand on point 3", Now).IsSuccess.Should().BeTrue();
-        submission.Status.Should().Be(SubmissionStatus.ReturnedForRevision);
+        submission.Return("Actually, please expand on point 3", Now).IsSuccess.Should().BeTrue();
+        submission.Status.Should().Be(SubmissionStatus.Returned);
         submission.Marks.Should().BeNull();
 
-        submission.Update("Expanded answer", null, Now.AddDays(1), Now).IsSuccess.Should().BeTrue();
+        submission.Update("Expanded answer", null, Now.AddDays(1), AssignmentStatus.Published, Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.Submitted);
     }
 }

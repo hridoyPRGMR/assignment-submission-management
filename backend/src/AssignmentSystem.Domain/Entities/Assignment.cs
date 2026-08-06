@@ -87,11 +87,22 @@ public class Assignment : AuditableEntity
         return Result.Success(assignment);
     }
 
+    public AssignmentLifecycleStatus GetLifecycleStatus(DateTime nowUtc) => Status switch
+    {
+        AssignmentStatus.Draft => AssignmentLifecycleStatus.Draft,
+        AssignmentStatus.Published => nowUtc <= DeadlineUtc
+            ? AssignmentLifecycleStatus.SubmissionOpen
+            : AssignmentLifecycleStatus.DeadlinePassed,
+        AssignmentStatus.Graded => AssignmentLifecycleStatus.Graded,
+        AssignmentStatus.Archived => AssignmentLifecycleStatus.Archived,
+        _ => AssignmentLifecycleStatus.Draft
+    };
+
     public Result Publish(DateTime nowUtc, Guid? actorUserId = null)
     {
-        if (Status == AssignmentStatus.Published)
+        if (Status != AssignmentStatus.Draft)
         {
-            return Result.Failure("Assignment is already published.");
+            return Result.Failure("Only a draft assignment can be published.");
         }
 
         Status = AssignmentStatus.Published;
@@ -101,12 +112,46 @@ public class Assignment : AuditableEntity
 
     public Result Unpublish(DateTime nowUtc, Guid? actorUserId = null)
     {
-        if (Status == AssignmentStatus.Draft)
+        if (Status != AssignmentStatus.Published)
         {
-            return Result.Failure("Assignment is already a draft.");
+            return Result.Failure("Only a published assignment can be unpublished.");
+        }
+
+        if (nowUtc > DeadlineUtc)
+        {
+            return Result.Failure("Cannot unpublish an assignment once its deadline has passed; grade or archive it instead.");
         }
 
         Status = AssignmentStatus.Draft;
+        TouchUpdated(nowUtc, actorUserId);
+        return Result.Success();
+    }
+
+    public Result MarkGraded(DateTime nowUtc, Guid? actorUserId = null)
+    {
+        if (Status != AssignmentStatus.Published)
+        {
+            return Result.Failure("Only a published assignment can be marked as graded.");
+        }
+
+        if (nowUtc <= DeadlineUtc)
+        {
+            return Result.Failure("Cannot mark an assignment as graded before its deadline has passed.");
+        }
+
+        Status = AssignmentStatus.Graded;
+        TouchUpdated(nowUtc, actorUserId);
+        return Result.Success();
+    }
+
+    public Result Archive(DateTime nowUtc, Guid? actorUserId = null)
+    {
+        if (Status != AssignmentStatus.Graded)
+        {
+            return Result.Failure("Only a graded assignment can be archived.");
+        }
+
+        Status = AssignmentStatus.Archived;
         TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
@@ -120,6 +165,11 @@ public class Assignment : AuditableEntity
         DateTime nowUtc,
         Guid? actorUserId = null)
     {
+        if (Status == AssignmentStatus.Graded || Status == AssignmentStatus.Archived)
+        {
+            return Result.Failure("Cannot edit an assignment that has been graded or archived.");
+        }
+
         if (string.IsNullOrWhiteSpace(title))
         {
             return Result.Failure("Title is required.");

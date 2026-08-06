@@ -63,6 +63,83 @@ public class AssignmentWorkflowTests : IClassFixture<CustomWebApplicationFactory
     }
 
     [Fact]
+    public async Task Full_workflow_publish_deadline_pass_mark_graded_archive_then_edit_is_blocked()
+    {
+        var teacherClient = await _factory.CreateClient()
+            .AuthenticateAsync(CustomWebApplicationFactory.TeacherEmail, CustomWebApplicationFactory.TeacherPassword);
+
+        var createResponse = await teacherClient.PostAsJsonAsync("/api/v1/assignments", new
+        {
+            title = "Short Deadline Assignment",
+            description = "Solve the problems",
+            classId = _factory.ClassId,
+            subjectId = _factory.SubjectId,
+            deadlineUtc = DateTime.UtcNow.AddSeconds(1),
+            maxMarks = 100,
+        });
+
+        var createdAssignment = await createResponse.Content.ReadFromJsonAsync<AssignmentBody>();
+
+        await teacherClient.PostAsync($"/api/v1/assignments/{createdAssignment!.Id}/publish", null);
+
+        await Task.Delay(1200);
+
+        var markGradedResponse = await teacherClient.PostAsync($"/api/v1/assignments/{createdAssignment.Id}/mark-graded", null);
+        markGradedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var gradedAssignment = await markGradedResponse.Content.ReadFromJsonAsync<AssignmentBody>();
+        gradedAssignment!.Status.Should().Be("Graded");
+
+        var editResponse = await teacherClient.PutAsJsonAsync($"/api/v1/assignments/{createdAssignment.Id}", new
+        {
+            title = "Should not be allowed",
+            description = "Solve the problems",
+            deadlineUtc = DateTime.UtcNow.AddDays(7),
+            maxMarks = 100,
+        });
+        editResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var archiveResponse = await teacherClient.PostAsync($"/api/v1/assignments/{createdAssignment.Id}/archive", null);
+        archiveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var archivedAssignment = await archiveResponse.Content.ReadFromJsonAsync<AssignmentBody>();
+        archivedAssignment!.Status.Should().Be("Archived");
+    }
+
+    [Fact]
+    public async Task Submission_after_deadline_is_marked_late()
+    {
+        var teacherClient = await _factory.CreateClient()
+            .AuthenticateAsync(CustomWebApplicationFactory.TeacherEmail, CustomWebApplicationFactory.TeacherPassword);
+
+        var createResponse = await teacherClient.PostAsJsonAsync("/api/v1/assignments", new
+        {
+            title = "Late Submission Assignment",
+            description = "Solve the problems",
+            classId = _factory.ClassId,
+            subjectId = _factory.SubjectId,
+            deadlineUtc = DateTime.UtcNow.AddSeconds(1),
+            maxMarks = 100,
+        });
+
+        var createdAssignment = await createResponse.Content.ReadFromJsonAsync<AssignmentBody>();
+        await teacherClient.PostAsync($"/api/v1/assignments/{createdAssignment!.Id}/publish", null);
+
+        await Task.Delay(1200);
+
+        var studentClient = await _factory.CreateClient()
+            .AuthenticateAsync(CustomWebApplicationFactory.StudentEmail, CustomWebApplicationFactory.StudentPassword);
+
+        var submitResponse = await studentClient.PostAsJsonAsync("/api/v1/submissions", new
+        {
+            assignmentId = createdAssignment.Id,
+            content = "Sorry this is late",
+        });
+
+        submitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var submission = await submitResponse.Content.ReadFromJsonAsync<SubmissionBody>();
+        submission!.Status.Should().Be("LateSubmission");
+    }
+
+    [Fact]
     public async Task Student_cannot_create_assignment()
     {
         var studentClient = await _factory.CreateClient()

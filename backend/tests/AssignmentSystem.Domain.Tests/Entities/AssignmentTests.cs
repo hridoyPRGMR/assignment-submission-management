@@ -133,4 +133,70 @@ public class AssignmentTests
 
         assignment.IsDeleted.Should().BeTrue();
     }
+
+    [Fact]
+    public void GetLifecycleStatus_should_report_SubmissionOpen_before_deadline_and_DeadlinePassed_after()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+
+        assignment.GetLifecycleStatus(Now).Should().Be(AssignmentLifecycleStatus.SubmissionOpen);
+        assignment.GetLifecycleStatus(deadline.AddMinutes(1)).Should().Be(AssignmentLifecycleStatus.DeadlinePassed);
+    }
+
+    [Fact]
+    public void MarkGraded_before_deadline_should_fail()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+
+        var result = assignment.MarkGraded(Now);
+
+        result.IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MarkGraded_after_deadline_should_succeed_then_Archive_should_succeed()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+        var afterDeadline = deadline.AddMinutes(1);
+
+        var gradedResult = assignment.MarkGraded(afterDeadline);
+        gradedResult.IsSuccess.Should().BeTrue();
+        assignment.Status.Should().Be(AssignmentStatus.Graded);
+
+        var archiveResult = assignment.Archive(afterDeadline);
+        archiveResult.IsSuccess.Should().BeTrue();
+        assignment.Status.Should().Be(AssignmentStatus.Archived);
+    }
+
+    [Fact]
+    public void UpdateDetails_on_a_graded_assignment_should_fail()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+        assignment.MarkGraded(deadline.AddMinutes(1));
+
+        var result = assignment.UpdateDetails("New title", "New description", deadline, 100, hasSubmissions: false, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("graded or archived");
+    }
+
+    [Fact]
+    public void Unpublish_after_deadline_should_fail()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+
+        var result = assignment.Unpublish(deadline.AddMinutes(1));
+
+        result.IsFailure.Should().BeTrue();
+    }
 }

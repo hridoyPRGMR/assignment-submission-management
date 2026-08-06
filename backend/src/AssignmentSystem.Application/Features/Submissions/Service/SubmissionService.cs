@@ -90,7 +90,7 @@ public class SubmissionService(
         }
 
         var updateResult = submission.Update(
-            input.Content, input.FileUrl, submission.Assignment.DeadlineUtc, DateTime.UtcNow, input.RequestingStudentUserId);
+            input.Content, input.FileUrl, submission.Assignment.DeadlineUtc, submission.Assignment.Status, DateTime.UtcNow, input.RequestingStudentUserId);
 
         if (updateResult.IsFailure)
         {
@@ -162,7 +162,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>("You do not own this assignment.");
         }
 
-        var result = submission.ReturnForRevision(input.Feedback, DateTime.UtcNow, input.RequestingTeacherUserId);
+        var result = submission.Return(input.Feedback, DateTime.UtcNow, input.RequestingTeacherUserId);
         if (result.IsFailure)
         {
             return Result.Failure<SubmissionDto>(result.Error!);

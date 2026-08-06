@@ -22,7 +22,7 @@ public class DashboardService(
         var totalSubjects = await subjectRepository.Query().CountAsync(cancellationToken);
         var totalAssignments = await assignmentRepository.Query().CountAsync(cancellationToken);
         var publishedAssignments = await assignmentRepository.Query().CountAsync(a => a.Status == AssignmentStatus.Published, cancellationToken);
-        var draftAssignments = totalAssignments - publishedAssignments;
+        var draftAssignments = await assignmentRepository.Query().CountAsync(a => a.Status == AssignmentStatus.Draft, cancellationToken);
         var totalSubmissions = await submissionRepository.Query().CountAsync(cancellationToken);
         var gradedSubmissions = await submissionRepository.Query().CountAsync(s => s.Status == SubmissionStatus.Graded, cancellationToken);
 
@@ -75,7 +75,8 @@ public class DashboardService(
         var publishedAssignments = await assignmentRepository.Query()
             .CountAsync(a => a.TeacherUserId == teacherUserId && a.Status == AssignmentStatus.Published, cancellationToken);
 
-        var draftAssignments = totalAssignments - publishedAssignments;
+        var draftAssignments = await assignmentRepository.Query()
+            .CountAsync(a => a.TeacherUserId == teacherUserId && a.Status == AssignmentStatus.Draft, cancellationToken);
 
         var totalSubmissions = await submissionRepository.Query()
             .CountAsync(s => s.Assignment.TeacherUserId == teacherUserId, cancellationToken);
@@ -83,7 +84,7 @@ public class DashboardService(
         var pendingToGradeCount = await submissionRepository.Query()
             .CountAsync(
                 s => s.Assignment.TeacherUserId == teacherUserId
-                    && (s.Status == SubmissionStatus.Submitted || s.Status == SubmissionStatus.UnderReview),
+                    && (s.Status == SubmissionStatus.Submitted || s.Status == SubmissionStatus.LateSubmission || s.Status == SubmissionStatus.UnderReview),
                 cancellationToken);
 
         var dto = new TeacherDashboardDto(totalAssignments, draftAssignments, publishedAssignments, totalSubmissions, pendingToGradeCount);

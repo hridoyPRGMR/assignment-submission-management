@@ -68,6 +68,16 @@ export default function TeacherAssignmentsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] }),
   });
 
+  const markGradedMutation = useMutation({
+    mutationFn: (id: string) => assignmentsApi.markGraded(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] }),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => assignmentsApi.archive(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => assignmentsApi.remove(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] }),
@@ -186,7 +196,7 @@ export default function TeacherAssignmentsPage() {
                   <td className="py-2">{assignment.className}</td>
                   <td className="py-2">{assignment.subjectName}</td>
                   <td className="py-2">{new Date(assignment.deadlineUtc).toLocaleString()}</td>
-                  <td className="py-2">{assignment.status}</td>
+                  <td className="py-2">{assignment.lifecycleStatus}</td>
                   <td className="py-2 space-x-2">
                     <Link
                       href={`/teacher/assignments/${assignment.id}/submissions`}
@@ -194,19 +204,36 @@ export default function TeacherAssignmentsPage() {
                     >
                       Submissions
                     </Link>
-                    {assignment.status === "Draft" ? (
+                    {assignment.status === "Draft" && (
                       <button
                         onClick={() => publishMutation.mutate(assignment.id)}
                         className="text-sm font-medium text-neutral-700 underline"
                       >
                         Publish
                       </button>
-                    ) : (
+                    )}
+                    {assignment.lifecycleStatus === "SubmissionOpen" && (
                       <button
                         onClick={() => unpublishMutation.mutate(assignment.id)}
                         className="text-sm font-medium text-neutral-700 underline"
                       >
                         Unpublish
+                      </button>
+                    )}
+                    {assignment.lifecycleStatus === "DeadlinePassed" && (
+                      <button
+                        onClick={() => markGradedMutation.mutate(assignment.id)}
+                        className="text-sm font-medium text-neutral-700 underline"
+                      >
+                        Mark graded
+                      </button>
+                    )}
+                    {assignment.status === "Graded" && (
+                      <button
+                        onClick={() => archiveMutation.mutate(assignment.id)}
+                        className="text-sm font-medium text-neutral-700 underline"
+                      >
+                        Archive
                       </button>
                     )}
                     <button

@@ -1,4 +1,12 @@
-export type AssignmentStatus = "Draft" | "Published";
+export type AssignmentStatus = "Draft" | "Published" | "Graded" | "Archived";
+
+export type AssignmentLifecycleStatus =
+  | "Draft"
+  | "Published"
+  | "SubmissionOpen"
+  | "DeadlinePassed"
+  | "Graded"
+  | "Archived";
 
 export interface Assignment {
   id: string;
@@ -13,6 +21,7 @@ export interface Assignment {
   deadlineUtc: string;
   maxMarks: number;
   status: AssignmentStatus;
+  lifecycleStatus: AssignmentLifecycleStatus;
   createdAtUtc: string;
   updatedAtUtc: string;
 }

@@ -177,6 +177,64 @@ public class AssignmentService(
         return Result.Success(assignment.ToDto());
     }
 
+    public async Task<Result<AssignmentDto>> MarkGradedAsync(Guid id, Guid requestingUserId, CancellationToken cancellationToken)
+    {
+        var assignment = await assignmentRepository.Query()
+            .Include(a => a.Class)
+            .Include(a => a.Subject)
+            .Include(a => a.TeacherUser)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+        if (assignment is null)
+        {
+            return Result.Failure<AssignmentDto>("Assignment not found.");
+        }
+
+        if (assignment.TeacherUserId != requestingUserId)
+        {
+            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+        }
+
+        var result = assignment.MarkGraded(DateTime.UtcNow, requestingUserId);
+        if (result.IsFailure)
+        {
+            return Result.Failure<AssignmentDto>(result.Error!);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(assignment.ToDto());
+    }
+
+    public async Task<Result<AssignmentDto>> ArchiveAsync(Guid id, Guid requestingUserId, CancellationToken cancellationToken)
+    {
+        var assignment = await assignmentRepository.Query()
+            .Include(a => a.Class)
+            .Include(a => a.Subject)
+            .Include(a => a.TeacherUser)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+
+        if (assignment is null)
+        {
+            return Result.Failure<AssignmentDto>("Assignment not found.");
+        }
+
+        if (assignment.TeacherUserId != requestingUserId)
+        {
+            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+        }
+
+        var result = assignment.Archive(DateTime.UtcNow, requestingUserId);
+        if (result.IsFailure)
+        {
+            return Result.Failure<AssignmentDto>(result.Error!);
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(assignment.ToDto());
+    }
+
     public async Task<Result<AssignmentDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var assignment = await assignmentRepository.Query()

@@ -19,17 +19,22 @@ public class Submission : AuditableEntity
     public DateTime? GradedAtUtc { get; private set; }
     public Guid? GradedByUserId { get; private set; }
 
+    private static readonly SubmissionStatus[] EditableStatuses =
+    [
+        SubmissionStatus.Submitted, SubmissionStatus.LateSubmission, SubmissionStatus.Returned
+    ];
+
     private Submission() { }
 
-    private Submission(Guid id, Guid assignmentId, Guid studentUserId, string content, string? fileUrl, DateTime nowUtc)
+    private Submission(Guid id, Guid assignmentId, Guid studentUserId, string content, string? fileUrl, bool isLate, DateTime nowUtc)
     {
         AssignmentId = assignmentId;
         StudentUserId = studentUserId;
         Content = content;
         FileUrl = fileUrl;
         SubmittedAtUtc = nowUtc;
-        IsLate = false;
-        Status = SubmissionStatus.Submitted;
+        IsLate = isLate;
+        Status = isLate ? SubmissionStatus.LateSubmission : SubmissionStatus.Submitted;
         InitializeAudit(id, nowUtc, studentUserId);
     }
 
@@ -46,24 +51,22 @@ public class Submission : AuditableEntity
             return Result.Failure<Submission>("Submission content is required.");
         }
 
-        if (nowUtc > assignmentDeadlineUtc)
-        {
-            return Result.Failure<Submission>("The deadline for this assignment has passed.");
-        }
+        var isLate = nowUtc > assignmentDeadlineUtc;
 
-        return Result.Success(new Submission(Guid.NewGuid(), assignmentId, studentUserId, content.Trim(), fileUrl, nowUtc));
+        return Result.Success(new Submission(Guid.NewGuid(), assignmentId, studentUserId, content.Trim(), fileUrl, isLate, nowUtc));
     }
 
-    public Result Update(string content, string? fileUrl, DateTime assignmentDeadlineUtc, DateTime nowUtc, Guid? actorUserId = null)
+    public Result Update(
+        string content, string? fileUrl, DateTime assignmentDeadlineUtc, AssignmentStatus assignmentStatus, DateTime nowUtc, Guid? actorUserId = null)
     {
-        if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.ReturnedForRevision)
+        if (assignmentStatus is AssignmentStatus.Graded or AssignmentStatus.Archived)
         {
-            return Result.Failure("This submission can no longer be updated.");
+            return Result.Failure("This assignment is closed and can no longer be updated.");
         }
 
-        if (nowUtc > assignmentDeadlineUtc)
+        if (!EditableStatuses.Contains(Status))
         {
-            return Result.Failure("The deadline for this assignment has passed.");
+            return Result.Failure("This submission can no longer be updated.");
         }
 
         if (string.IsNullOrWhiteSpace(content))
@@ -71,15 +74,17 @@ public class Submission : AuditableEntity
             return Result.Failure("Submission content is required.");
         }
 
-        var wasReturnedForRevision = Status == SubmissionStatus.ReturnedForRevision;
+        var wasReturned = Status == SubmissionStatus.Returned;
+        var isLate = nowUtc > assignmentDeadlineUtc;
 
         Content = content.Trim();
         FileUrl = fileUrl;
         SubmittedAtUtc = nowUtc;
+        IsLate = isLate;
+        Status = isLate ? SubmissionStatus.LateSubmission : SubmissionStatus.Submitted;
 
-        if (wasReturnedForRevision)
+        if (wasReturned)
         {
-            Status = SubmissionStatus.Submitted;
             Marks = null;
             Feedback = null;
             GradedAtUtc = null;
@@ -92,7 +97,7 @@ public class Submission : AuditableEntity
 
     public Result StartReview(DateTime nowUtc, Guid? actorUserId = null)
     {
-        if (Status != SubmissionStatus.Submitted)
+        if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.LateSubmission)
         {
             return Result.Failure("Only submitted submissions can be moved to under review.");
         }
@@ -104,7 +109,7 @@ public class Submission : AuditableEntity
 
     public Result Grade(int marks, string feedback, int assignmentMaxMarks, Guid graderUserId, DateTime nowUtc)
     {
-        if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.UnderReview)
+        if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.LateSubmission && Status != SubmissionStatus.UnderReview)
         {
             return Result.Failure("Only submitted or under-review submissions can be graded.");
         }
@@ -129,7 +134,7 @@ public class Submission : AuditableEntity
         return Result.Success();
     }
 
-    public Result ReturnForRevision(string feedback, DateTime nowUtc, Guid? actorUserId = null)
+    public Result Return(string feedback, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status != SubmissionStatus.UnderReview && Status != SubmissionStatus.Graded)
         {
@@ -141,7 +146,7 @@ public class Submission : AuditableEntity
             return Result.Failure("Feedback is required when returning a submission for revision.");
         }
 
-        Status = SubmissionStatus.ReturnedForRevision;
+        Status = SubmissionStatus.Returned;
         Feedback = feedback.Trim();
         Marks = null;
         GradedAtUtc = null;

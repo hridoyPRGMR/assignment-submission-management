@@ -16,6 +16,10 @@ public interface IAssignmentService
 
     Task<Result<AssignmentDto>> UnpublishAsync(Guid id, Guid requestingUserId, CancellationToken cancellationToken);
 
+    Task<Result<AssignmentDto>> MarkGradedAsync(Guid id, Guid requestingUserId, CancellationToken cancellationToken);
+
+    Task<Result<AssignmentDto>> ArchiveAsync(Guid id, Guid requestingUserId, CancellationToken cancellationToken);
+
     Task<Result<AssignmentDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task<Result<PagedResult<AssignmentDto>>> GetListAsync(

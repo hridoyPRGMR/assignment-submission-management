@@ -1,4 +1,4 @@
-export type SubmissionStatus = "Submitted" | "UnderReview" | "Graded" | "ReturnedForRevision";
+export type SubmissionStatus = "Submitted" | "LateSubmission" | "UnderReview" | "Graded" | "Returned";
 
 export interface Submission {
   id: string;

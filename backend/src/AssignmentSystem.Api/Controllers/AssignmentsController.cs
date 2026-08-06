@@ -72,7 +72,7 @@ public class AssignmentsController(
 
         if (User.IsInRole(UserRole.Student.ToString()))
         {
-            if (result.Value.Status != "Published")
+            if (result.Value.Status == "Draft")
             {
                 return NotFound();
             }
@@ -137,6 +137,34 @@ public class AssignmentsController(
         }
 
         var result = await assignmentService.UnpublishAsync(id, CurrentUserId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id:guid}/mark-graded")]
+    [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
+    public async Task<IActionResult> MarkGraded(Guid id, CancellationToken cancellationToken)
+    {
+        var authCheck = await AuthorizeAgainstExistingAssignment(id, cancellationToken);
+        if (authCheck is not null)
+        {
+            return authCheck;
+        }
+
+        var result = await assignmentService.MarkGradedAsync(id, CurrentUserId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [HttpPost("{id:guid}/archive")]
+    [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
+    public async Task<IActionResult> Archive(Guid id, CancellationToken cancellationToken)
+    {
+        var authCheck = await AuthorizeAgainstExistingAssignment(id, cancellationToken);
+        if (authCheck is not null)
+        {
+            return authCheck;
+        }
+
+        var result = await assignmentService.ArchiveAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 

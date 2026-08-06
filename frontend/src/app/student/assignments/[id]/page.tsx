@@ -68,7 +68,10 @@ export default function StudentAssignmentDetailPage() {
   const assignment = assignmentQuery.data;
   const submission = submissionQuery.data;
   const canEdit =
-    !submission || submission.status === "Submitted" || submission.status === "ReturnedForRevision";
+    !submission ||
+    submission.status === "Submitted" ||
+    submission.status === "LateSubmission" ||
+    submission.status === "Returned";
   const mutation = submission ? updateMutation : createMutation;
 
   return (
@@ -94,7 +97,7 @@ export default function StudentAssignmentDetailPage() {
               {submission.feedback && <p>Feedback: {submission.feedback}</p>}
             </>
           )}
-          {submission.status === "ReturnedForRevision" && submission.feedback && (
+          {submission.status === "Returned" && submission.feedback && (
             <p>Feedback: {submission.feedback}</p>
           )}
         </div>

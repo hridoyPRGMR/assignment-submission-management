@@ -3,7 +3,8 @@ namespace AssignmentSystem.Domain.Enums;
 public enum SubmissionStatus
 {
     Submitted = 1,
-    UnderReview = 2,
-    Graded = 3,
-    ReturnedForRevision = 4
+    LateSubmission = 2,
+    UnderReview = 3,
+    Graded = 4,
+    Returned = 5
 }

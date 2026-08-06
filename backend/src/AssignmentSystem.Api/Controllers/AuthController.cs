@@ -1,13 +1,12 @@
 using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Auth;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Controllers;
 
-public class AuthController(ISender sender) : ApiControllerBase(sender)
+public class AuthController(IAuthService authService) : ApiControllerBase
 {
     [Authorize]
     [HttpGet("me")]
@@ -23,23 +22,23 @@ public class AuthController(ISender sender) : ApiControllerBase(sender)
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login(LoginCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Login(LoginInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await authService.LoginAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(RefreshTokenCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Refresh(RefreshTokenInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await authService.RefreshTokenAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(LogoutCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout(LogoutInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await authService.LogoutAsync(input, cancellationToken);
         return HandleResult(result);
     }
 }

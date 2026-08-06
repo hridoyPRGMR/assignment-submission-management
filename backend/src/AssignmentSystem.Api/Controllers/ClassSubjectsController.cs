@@ -1,6 +1,5 @@
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.ClassSubjects;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +7,7 @@ namespace AssignmentSystem.Api.Controllers;
 
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 [Route("api/v1/class-subjects")]
-public class ClassSubjectsController(ISender sender) : ApiControllerBase(sender)
+public class ClassSubjectsController(IClassSubjectService classSubjectService) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetClassSubjects(
@@ -16,21 +15,21 @@ public class ClassSubjectsController(ISender sender) : ApiControllerBase(sender)
         [FromQuery] Guid? subjectId,
         CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetClassSubjectsQuery(classId, subjectId), cancellationToken);
+        var result = await classSubjectService.GetForClassAsync(classId, subjectId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> AssignSubjectToClass(AssignSubjectToClassCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> AssignSubjectToClass(AssignSubjectToClassInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await classSubjectService.AssignAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> RemoveClassSubject(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new RemoveClassSubjectCommand(id), cancellationToken);
+        var result = await classSubjectService.RemoveAsync(id, cancellationToken);
         return HandleResult(result);
     }
 }

@@ -1,15 +1,12 @@
 using AssignmentSystem.Domain.Common;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Common;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-public abstract class ApiControllerBase(ISender sender) : ControllerBase
+public abstract class ApiControllerBase : ControllerBase
 {
-    protected ISender Sender { get; } = sender;
-
     protected IActionResult HandleResult(Result result)
     {
         if (result.IsSuccess)

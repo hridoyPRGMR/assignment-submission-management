@@ -2,7 +2,6 @@ using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.TeacherAssignments;
 using AssignmentSystem.Domain.Enums;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,7 +9,7 @@ namespace AssignmentSystem.Api.Controllers;
 
 [Authorize]
 [Route("api/v1/teacher-assignments")]
-public class TeacherAssignmentsController(ISender sender) : ApiControllerBase(sender)
+public class TeacherAssignmentsController(ITeacherAssignmentService teacherAssignmentService) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetTeacherAssignments(
@@ -27,15 +26,15 @@ public class TeacherAssignmentsController(ISender sender) : ApiControllerBase(se
             teacherUserId = callerId;
         }
 
-        var result = await Sender.Send(new GetTeacherAssignmentsQuery(teacherUserId, classId, subjectId), cancellationToken);
+        var result = await teacherAssignmentService.GetForTeacherAsync(teacherUserId, classId, subjectId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost]
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
-    public async Task<IActionResult> AssignTeacher(AssignTeacherCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> AssignTeacher(AssignTeacherInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await teacherAssignmentService.AssignAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -43,7 +42,7 @@ public class TeacherAssignmentsController(ISender sender) : ApiControllerBase(se
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> RemoveTeacherAssignment(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new RemoveTeacherAssignmentCommand(id), cancellationToken);
+        var result = await teacherAssignmentService.RemoveAsync(id, cancellationToken);
         return HandleResult(result);
     }
 }

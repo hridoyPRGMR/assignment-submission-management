@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Dashboard;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +8,7 @@ namespace AssignmentSystem.Api.Controllers;
 
 [Authorize]
 [Route("api/v1/dashboard")]
-public class DashboardController(ISender sender) : ApiControllerBase(sender)
+public class DashboardController(IDashboardService dashboardService) : ApiControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -18,7 +17,7 @@ public class DashboardController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> GetAdminDashboard(CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetAdminDashboardQuery(), cancellationToken);
+        var result = await dashboardService.GetAdminDashboardAsync(cancellationToken);
         return HandleResult(result);
     }
 
@@ -26,7 +25,7 @@ public class DashboardController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
     public async Task<IActionResult> GetTeacherDashboard(CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetTeacherDashboardQuery(CurrentUserId), cancellationToken);
+        var result = await dashboardService.GetTeacherDashboardAsync(CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -34,7 +33,7 @@ public class DashboardController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
     public async Task<IActionResult> GetStudentDashboard(CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetStudentDashboardQuery(CurrentUserId), cancellationToken);
+        var result = await dashboardService.GetStudentDashboardAsync(CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 }

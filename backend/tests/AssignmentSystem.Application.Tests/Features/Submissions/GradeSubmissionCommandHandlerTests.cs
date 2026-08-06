@@ -11,6 +11,14 @@ public class GradeSubmissionCommandHandlerTests
 {
     private static readonly DateTime Now = DateTime.UtcNow;
 
+    private static SubmissionService CreateService(AppDbContext dbContext) =>
+        new(
+            dbContext,
+            new CreateSubmissionInputValidator(),
+            new GradeSubmissionInputValidator(),
+            new ReturnSubmissionForRevisionInputValidator(),
+            new UpdateSubmissionInputValidator());
+
     private static (Submission Submission, User OwningTeacher, User OtherTeacher) SeedGradeableSubmission(AppDbContext dbContext)
     {
         var classEntity = Class.Create("Grade 10 - A", null, Now).Value;
@@ -41,10 +49,10 @@ public class GradeSubmissionCommandHandlerTests
         using var dbContext = TestDbContextFactory.Create();
         var (submission, _, otherTeacher) = SeedGradeableSubmission(dbContext);
 
-        var handler = new GradeSubmissionCommandHandler(dbContext);
+        var service = CreateService(dbContext);
 
-        var result = await handler.Handle(
-            new GradeSubmissionCommand(submission.Id, otherTeacher.Id, 80, "Nice work"), CancellationToken.None);
+        var result = await service.GradeAsync(
+            new GradeSubmissionInput(submission.Id, otherTeacher.Id, 80, "Nice work"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("do not own");
@@ -57,10 +65,10 @@ public class GradeSubmissionCommandHandlerTests
         using var dbContext = TestDbContextFactory.Create();
         var (submission, owningTeacher, _) = SeedGradeableSubmission(dbContext);
 
-        var handler = new GradeSubmissionCommandHandler(dbContext);
+        var service = CreateService(dbContext);
 
-        var result = await handler.Handle(
-            new GradeSubmissionCommand(submission.Id, owningTeacher.Id, 80, "Nice work"), CancellationToken.None);
+        var result = await service.GradeAsync(
+            new GradeSubmissionInput(submission.Id, owningTeacher.Id, 80, "Nice work"), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("Graded");
@@ -73,10 +81,10 @@ public class GradeSubmissionCommandHandlerTests
         using var dbContext = TestDbContextFactory.Create();
         var (submission, owningTeacher, _) = SeedGradeableSubmission(dbContext);
 
-        var handler = new GradeSubmissionCommandHandler(dbContext);
+        var service = CreateService(dbContext);
 
-        var result = await handler.Handle(
-            new GradeSubmissionCommand(submission.Id, owningTeacher.Id, 150, "Nice work"), CancellationToken.None);
+        var result = await service.GradeAsync(
+            new GradeSubmissionInput(submission.Id, owningTeacher.Id, 150, "Nice work"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
     }

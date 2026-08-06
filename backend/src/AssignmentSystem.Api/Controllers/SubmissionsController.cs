@@ -1,14 +1,13 @@
 using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Submissions;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Controllers;
 
 [Authorize]
-public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
+public class SubmissionsController(ISubmissionService submissionService) : ApiControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -17,7 +16,7 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
     public async Task<IActionResult> GetMySubmissions(CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetMySubmissionsQuery(CurrentUserId), cancellationToken);
+        var result = await submissionService.GetMySubmissionsAsync(CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -25,7 +24,7 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
     public async Task<IActionResult> GetMySubmissionForAssignment(Guid assignmentId, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetSubmissionForAssignmentQuery(assignmentId, CurrentUserId), cancellationToken);
+        var result = await submissionService.GetForAssignmentAsync(assignmentId, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -33,8 +32,8 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
     public async Task<IActionResult> CreateSubmission(CreateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var command = new CreateSubmissionCommand(CurrentUserId, request.AssignmentId, request.Content, request.FileUrl);
-        var result = await Sender.Send(command, cancellationToken);
+        var input = new CreateSubmissionInput(CurrentUserId, request.AssignmentId, request.Content, request.FileUrl);
+        var result = await submissionService.CreateAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -42,8 +41,8 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.StudentOnly)]
     public async Task<IActionResult> UpdateSubmission(Guid id, UpdateSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var command = new UpdateSubmissionCommand(id, CurrentUserId, request.Content, request.FileUrl);
-        var result = await Sender.Send(command, cancellationToken);
+        var input = new UpdateSubmissionInput(id, CurrentUserId, request.Content, request.FileUrl);
+        var result = await submissionService.UpdateAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -51,7 +50,7 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
     public async Task<IActionResult> StartReview(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new StartReviewCommand(id, CurrentUserId), cancellationToken);
+        var result = await submissionService.StartReviewAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -59,8 +58,8 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
     public async Task<IActionResult> Grade(Guid id, GradeSubmissionRequest request, CancellationToken cancellationToken)
     {
-        var command = new GradeSubmissionCommand(id, CurrentUserId, request.Marks, request.Feedback);
-        var result = await Sender.Send(command, cancellationToken);
+        var input = new GradeSubmissionInput(id, CurrentUserId, request.Marks, request.Feedback);
+        var result = await submissionService.GradeAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -68,8 +67,8 @@ public class SubmissionsController(ISender sender) : ApiControllerBase(sender)
     [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
     public async Task<IActionResult> ReturnForRevision(Guid id, ReturnForRevisionRequest request, CancellationToken cancellationToken)
     {
-        var command = new ReturnSubmissionForRevisionCommand(id, CurrentUserId, request.Feedback);
-        var result = await Sender.Send(command, cancellationToken);
+        var input = new ReturnSubmissionForRevisionInput(id, CurrentUserId, request.Feedback);
+        var result = await submissionService.ReturnForRevisionAsync(input, cancellationToken);
         return HandleResult(result);
     }
 }

@@ -1,0 +1,13 @@
+using FluentValidation;
+
+namespace AssignmentSystem.Application.Features.Submissions;
+
+public class CreateSubmissionInputValidator : AbstractValidator<CreateSubmissionInput>
+{
+    public CreateSubmissionInputValidator()
+    {
+        RuleFor(x => x.AssignmentId).NotEmpty();
+        RuleFor(x => x.Content).NotEmpty().MaximumLength(8000);
+        RuleFor(x => x.FileUrl).MaximumLength(1000);
+    }
+}

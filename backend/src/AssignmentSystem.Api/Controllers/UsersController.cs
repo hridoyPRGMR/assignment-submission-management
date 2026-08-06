@@ -1,14 +1,13 @@
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Users;
 using AssignmentSystem.Domain.Enums;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Controllers;
 
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
-public class UsersController(ISender sender) : ApiControllerBase(sender)
+public class UsersController(IUserService userService) : ApiControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetUsers(
@@ -17,42 +16,42 @@ public class UsersController(ISender sender) : ApiControllerBase(sender)
         [FromQuery] UserRole? role = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetUsersQuery(page, pageSize, role), cancellationToken);
+        var result = await userService.GetListAsync(page, pageSize, role, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetUserById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetUserByIdQuery(id), cancellationToken);
+        var result = await userService.GetByIdAsync(id, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateUser(CreateUserCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> CreateUser(CreateUserInput input, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await userService.CreateAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateUser(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new UpdateUserCommand(id, request.FullName), cancellationToken);
+        var result = await userService.UpdateAsync(new UpdateUserInput(id, request.FullName), cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("{id:guid}/activate")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new SetUserActiveStatusCommand(id, true), cancellationToken);
+        var result = await userService.SetActiveStatusAsync(id, true, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("{id:guid}/deactivate")]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new SetUserActiveStatusCommand(id, false), cancellationToken);
+        var result = await userService.SetActiveStatusAsync(id, false, cancellationToken);
         return HandleResult(result);
     }
 }

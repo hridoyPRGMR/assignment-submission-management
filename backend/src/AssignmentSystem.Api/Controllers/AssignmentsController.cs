@@ -4,14 +4,17 @@ using AssignmentSystem.Application.Features.Assignments;
 using AssignmentSystem.Application.Features.StudentEnrollments;
 using AssignmentSystem.Application.Features.Submissions;
 using AssignmentSystem.Domain.Enums;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AssignmentSystem.Api.Controllers;
 
 [Authorize]
-public class AssignmentsController(ISender sender, IAuthorizationService authorizationService) : ApiControllerBase(sender)
+public class AssignmentsController(
+    IAssignmentService assignmentService,
+    IStudentEnrollmentService studentEnrollmentService,
+    ISubmissionService submissionService,
+    IAuthorizationService authorizationService) : ApiControllerBase
 {
     private Guid CurrentUserId =>
         Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
@@ -24,7 +27,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetAssignmentsQuery(CurrentUserId, null, status, page, pageSize), cancellationToken);
+        var result = await assignmentService.GetListAsync(CurrentUserId, null, status, page, pageSize, cancellationToken);
         return HandleResult(result);
     }
 
@@ -37,7 +40,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetAssignmentsQuery(null, classId, status, page, pageSize), cancellationToken);
+        var result = await assignmentService.GetListAsync(null, classId, status, page, pageSize, cancellationToken);
         return HandleResult(result);
     }
 
@@ -48,14 +51,14 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
-        var result = await Sender.Send(new GetPublishedAssignmentsForStudentQuery(CurrentUserId, page, pageSize), cancellationToken);
+        var result = await assignmentService.GetPublishedForStudentAsync(CurrentUserId, page, pageSize, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetAssignmentById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await Sender.Send(new GetAssignmentByIdQuery(id), cancellationToken);
+        var result = await assignmentService.GetByIdAsync(id, cancellationToken);
         if (result.IsFailure)
         {
             return HandleResult(result);
@@ -74,7 +77,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
                 return NotFound();
             }
 
-            var isEnrolled = await Sender.Send(new IsStudentEnrolledQuery(CurrentUserId, result.Value.ClassId), cancellationToken);
+            var isEnrolled = await studentEnrollmentService.IsEnrolledAsync(CurrentUserId, result.Value.ClassId, cancellationToken);
             return isEnrolled.IsSuccess && isEnrolled.Value ? Ok(result.Value) : Forbid();
         }
 
@@ -85,10 +88,10 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
     [Authorize(Policy = AuthorizationPolicies.TeacherOnly)]
     public async Task<IActionResult> CreateAssignment(CreateAssignmentRequest request, CancellationToken cancellationToken)
     {
-        var command = new CreateAssignmentCommand(
+        var input = new CreateAssignmentInput(
             CurrentUserId, request.Title, request.Description, request.ClassId, request.SubjectId, request.DeadlineUtc, request.MaxMarks);
 
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await assignmentService.CreateAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -102,10 +105,10 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
             return authCheck;
         }
 
-        var command = new UpdateAssignmentCommand(
+        var input = new UpdateAssignmentInput(
             id, CurrentUserId, request.Title, request.Description, request.DeadlineUtc, request.MaxMarks);
 
-        var result = await Sender.Send(command, cancellationToken);
+        var result = await assignmentService.UpdateAsync(input, cancellationToken);
         return HandleResult(result);
     }
 
@@ -119,7 +122,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
             return authCheck;
         }
 
-        var result = await Sender.Send(new PublishAssignmentCommand(id, CurrentUserId), cancellationToken);
+        var result = await assignmentService.PublishAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -133,7 +136,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
             return authCheck;
         }
 
-        var result = await Sender.Send(new UnpublishAssignmentCommand(id, CurrentUserId), cancellationToken);
+        var result = await assignmentService.UnpublishAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -147,7 +150,7 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
             return authCheck;
         }
 
-        var result = await Sender.Send(new DeleteAssignmentCommand(id, CurrentUserId), cancellationToken);
+        var result = await assignmentService.DeleteAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -156,13 +159,13 @@ public class AssignmentsController(ISender sender, IAuthorizationService authori
     public async Task<IActionResult> GetSubmissionsForAssignment(Guid id, CancellationToken cancellationToken)
     {
         var isAdmin = User.IsInRole(UserRole.Admin.ToString());
-        var result = await Sender.Send(new GetSubmissionsForAssignmentQuery(id, CurrentUserId, isAdmin), cancellationToken);
+        var result = await submissionService.GetListForAssignmentAsync(id, CurrentUserId, isAdmin, cancellationToken);
         return HandleResult(result);
     }
 
     private async Task<IActionResult?> AuthorizeAgainstExistingAssignment(Guid id, CancellationToken cancellationToken)
     {
-        var existing = await Sender.Send(new GetAssignmentByIdQuery(id), cancellationToken);
+        var existing = await assignmentService.GetByIdAsync(id, cancellationToken);
         if (existing.IsFailure)
         {
             return NotFound();

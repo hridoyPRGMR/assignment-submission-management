@@ -16,6 +16,19 @@ public class LoginCommandHandlerTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:RefreshTokenDays"] = "7" })
             .Build();
 
+    private static AuthService CreateService(
+        AssignmentSystem.Infrastructure.Persistence.AppDbContext dbContext,
+        IPasswordHasher passwordHasher,
+        IJwtTokenGenerator jwtTokenGenerator) =>
+        new(
+            dbContext,
+            passwordHasher,
+            jwtTokenGenerator,
+            CreateConfiguration(),
+            new LoginInputValidator(),
+            new LogoutInputValidator(),
+            new RefreshTokenInputValidator());
+
     [Fact]
     public async Task Login_with_valid_credentials_should_succeed()
     {
@@ -31,9 +44,9 @@ public class LoginCommandHandlerTests
         jwtGeneratorMock.Setup(j => j.GenerateAccessToken(It.IsAny<User>()))
             .Returns(new AccessToken("fake-jwt", DateTime.UtcNow.AddMinutes(30)));
 
-        var handler = new LoginCommandHandler(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object, CreateConfiguration());
+        var service = CreateService(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object);
 
-        var result = await handler.Handle(new LoginCommand("teacher@school.edu", "correct-password"), CancellationToken.None);
+        var result = await service.LoginAsync(new LoginInput("teacher@school.edu", "correct-password"), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.AccessToken.Should().Be("fake-jwt");
@@ -53,9 +66,9 @@ public class LoginCommandHandlerTests
 
         passwordHasherMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
 
-        var handler = new LoginCommandHandler(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object, CreateConfiguration());
+        var service = CreateService(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object);
 
-        var result = await handler.Handle(new LoginCommand("teacher@school.edu", "wrong-password"), CancellationToken.None);
+        var result = await service.LoginAsync(new LoginInput("teacher@school.edu", "wrong-password"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be("Invalid email or password.");
@@ -75,9 +88,9 @@ public class LoginCommandHandlerTests
 
         passwordHasherMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
 
-        var handler = new LoginCommandHandler(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object, CreateConfiguration());
+        var service = CreateService(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object);
 
-        var result = await handler.Handle(new LoginCommand("teacher@school.edu", "correct-password"), CancellationToken.None);
+        var result = await service.LoginAsync(new LoginInput("teacher@school.edu", "correct-password"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -89,9 +102,9 @@ public class LoginCommandHandlerTests
         var passwordHasherMock = new Mock<IPasswordHasher>();
         var jwtGeneratorMock = new Mock<IJwtTokenGenerator>();
 
-        var handler = new LoginCommandHandler(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object, CreateConfiguration());
+        var service = CreateService(dbContext, passwordHasherMock.Object, jwtGeneratorMock.Object);
 
-        var result = await handler.Handle(new LoginCommand("nobody@school.edu", "whatever"), CancellationToken.None);
+        var result = await service.LoginAsync(new LoginInput("nobody@school.edu", "whatever"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
     }

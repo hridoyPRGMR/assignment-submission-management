@@ -7,7 +7,11 @@ using Microsoft.EntityFrameworkCore;
 namespace AssignmentSystem.Application.Features.ClassSubjects;
 
 public class ClassSubjectService(
-    IAppDbContext dbContext,
+    IClassSubjectRepository classSubjectRepository,
+    IClassRepository classRepository,
+    ISubjectRepository subjectRepository,
+    ITeacherAssignmentRepository teacherAssignmentRepository,
+    IUnitOfWork unitOfWork,
     IValidator<AssignSubjectToClassInput> assignValidator) : IClassSubjectService
 {
     public async Task<Result<ClassSubjectDto>> AssignAsync(AssignSubjectToClassInput input, CancellationToken cancellationToken)
@@ -18,19 +22,19 @@ public class ClassSubjectService(
             return Result.Failure<ClassSubjectDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var classEntity = await dbContext.Classes.FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
+        var classEntity = await classRepository.Query().FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
         if (classEntity is null)
         {
             return Result.Failure<ClassSubjectDto>("Class not found.");
         }
 
-        var subject = await dbContext.Subjects.FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
+        var subject = await subjectRepository.Query().FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
         if (subject is null)
         {
             return Result.Failure<ClassSubjectDto>("Subject not found.");
         }
 
-        var alreadyLinked = await dbContext.ClassSubjects
+        var alreadyLinked = await classSubjectRepository.Query()
             .AnyAsync(cs => cs.ClassId == input.ClassId && cs.SubjectId == input.SubjectId, cancellationToken);
 
         if (alreadyLinked)
@@ -39,15 +43,15 @@ public class ClassSubjectService(
         }
 
         var classSubject = ClassSubject.Create(input.ClassId, input.SubjectId);
-        dbContext.ClassSubjects.Add(classSubject);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        classSubjectRepository.Add(classSubject);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new ClassSubjectDto(classSubject.Id, classEntity.Id, classEntity.Name, subject.Id, subject.Name));
     }
 
     public async Task<Result<IReadOnlyList<ClassSubjectDto>>> GetForClassAsync(Guid? classId, Guid? subjectId, CancellationToken cancellationToken)
     {
-        var query = dbContext.ClassSubjects
+        var query = classSubjectRepository.Query()
             .AsNoTracking()
             .Include(cs => cs.Class)
             .Include(cs => cs.Subject)
@@ -72,14 +76,14 @@ public class ClassSubjectService(
 
     public async Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken)
     {
-        var classSubject = await dbContext.ClassSubjects.FirstOrDefaultAsync(cs => cs.Id == id, cancellationToken);
+        var classSubject = await classSubjectRepository.Query().FirstOrDefaultAsync(cs => cs.Id == id, cancellationToken);
 
         if (classSubject is null)
         {
             return Result.Failure("Class-subject association not found.");
         }
 
-        var hasTeacherAssignments = await dbContext.TeacherAssignments.AnyAsync(
+        var hasTeacherAssignments = await teacherAssignmentRepository.Query().AnyAsync(
             ta => ta.ClassId == classSubject.ClassId && ta.SubjectId == classSubject.SubjectId, cancellationToken);
 
         if (hasTeacherAssignments)
@@ -87,8 +91,8 @@ public class ClassSubjectService(
             return Result.Failure("Cannot remove this association while teachers are assigned to it.");
         }
 
-        dbContext.ClassSubjects.Remove(classSubject);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        classSubjectRepository.Remove(classSubject);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

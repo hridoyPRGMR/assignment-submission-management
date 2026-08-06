@@ -10,7 +10,9 @@ using Microsoft.Extensions.Configuration;
 namespace AssignmentSystem.Application.Features.Auth;
 
 public class AuthService(
-    IAppDbContext dbContext,
+    IUserRepository userRepository,
+    IRefreshTokenRepository refreshTokenRepository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IJwtTokenGenerator jwtTokenGenerator,
     IConfiguration configuration,
@@ -29,7 +31,7 @@ public class AuthService(
 
         var normalizedEmail = input.Email.Trim().ToLowerInvariant();
 
-        var user = await dbContext.Users
+        var user = await userRepository.Query()
             .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
 
         if (user is null || !user.IsActive || !passwordHasher.Verify(input.Password, user.PasswordHash))
@@ -49,8 +51,8 @@ public class AuthService(
             nowUtc.AddDays(refreshTokenDays),
             nowUtc);
 
-        dbContext.RefreshTokens.Add(refreshToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        refreshTokenRepository.Add(refreshToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new AuthResponseDto(
             accessToken.Token,
@@ -72,13 +74,13 @@ public class AuthService(
 
         var tokenHash = TokenHasher.Hash(input.RefreshToken);
 
-        var existingToken = await dbContext.RefreshTokens
+        var existingToken = await refreshTokenRepository.Query()
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
         if (existingToken is not null && existingToken.IsActive(DateTime.UtcNow))
         {
             existingToken.Revoke(DateTime.UtcNow);
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         return Result.Success();
@@ -95,7 +97,7 @@ public class AuthService(
         var nowUtc = DateTime.UtcNow;
         var tokenHash = TokenHasher.Hash(input.RefreshToken);
 
-        var existingToken = await dbContext.RefreshTokens
+        var existingToken = await refreshTokenRepository.Query()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash, cancellationToken);
 
@@ -117,8 +119,8 @@ public class AuthService(
             nowUtc.AddDays(refreshTokenDays),
             nowUtc);
 
-        dbContext.RefreshTokens.Add(newRefreshToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        refreshTokenRepository.Add(newRefreshToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new AuthResponseDto(
             accessToken.Token,

@@ -21,6 +21,8 @@ public class LoginCommandHandlerTests
         IPasswordHasher passwordHasher,
         IJwtTokenGenerator jwtTokenGenerator) =>
         new(
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.UserRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.RefreshTokenRepository(dbContext),
             dbContext,
             passwordHasher,
             jwtTokenGenerator,

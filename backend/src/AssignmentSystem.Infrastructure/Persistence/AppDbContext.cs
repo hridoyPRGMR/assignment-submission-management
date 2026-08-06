@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentSystem.Infrastructure.Persistence;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IAppDbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Class> Classes => Set<Class>();

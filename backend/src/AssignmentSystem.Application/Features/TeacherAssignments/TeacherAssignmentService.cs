@@ -7,7 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentSystem.Application.Features.TeacherAssignments;
 
-public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<AssignTeacherInput> assignValidator)
+public class TeacherAssignmentService(
+    IClassSubjectRepository classSubjectRepository,
+    IClassRepository classRepository,
+    ISubjectRepository subjectRepository,
+    ITeacherAssignmentRepository teacherAssignmentRepository,
+    IUserRepository userRepository,
+    IUnitOfWork unitOfWork,
+    IValidator<AssignTeacherInput> assignValidator)
     : ITeacherAssignmentService
 {
     public async Task<Result<TeacherAssignmentDto>> AssignAsync(AssignTeacherInput input, CancellationToken cancellationToken)
@@ -18,25 +25,25 @@ public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<Assign
             return Result.Failure<TeacherAssignmentDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var teacher = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == input.TeacherUserId, cancellationToken);
+        var teacher = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == input.TeacherUserId, cancellationToken);
         if (teacher is null || teacher.Role != UserRole.Teacher || !teacher.IsActive)
         {
             return Result.Failure<TeacherAssignmentDto>("Teacher not found or is not an active teacher account.");
         }
 
-        var classEntity = await dbContext.Classes.FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
+        var classEntity = await classRepository.Query().FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
         if (classEntity is null)
         {
             return Result.Failure<TeacherAssignmentDto>("Class not found.");
         }
 
-        var subject = await dbContext.Subjects.FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
+        var subject = await subjectRepository.Query().FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
         if (subject is null)
         {
             return Result.Failure<TeacherAssignmentDto>("Subject not found.");
         }
 
-        var subjectTaughtInClass = await dbContext.ClassSubjects
+        var subjectTaughtInClass = await classSubjectRepository.Query()
             .AnyAsync(cs => cs.ClassId == input.ClassId && cs.SubjectId == input.SubjectId, cancellationToken);
 
         if (!subjectTaughtInClass)
@@ -44,7 +51,7 @@ public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<Assign
             return Result.Failure<TeacherAssignmentDto>("This subject is not associated with the given class.");
         }
 
-        var alreadyAssigned = await dbContext.TeacherAssignments.AnyAsync(
+        var alreadyAssigned = await teacherAssignmentRepository.Query().AnyAsync(
             ta => ta.TeacherUserId == input.TeacherUserId && ta.ClassId == input.ClassId && ta.SubjectId == input.SubjectId,
             cancellationToken);
 
@@ -54,8 +61,8 @@ public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<Assign
         }
 
         var teacherAssignment = TeacherAssignment.Create(input.TeacherUserId, input.ClassId, input.SubjectId);
-        dbContext.TeacherAssignments.Add(teacherAssignment);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        teacherAssignmentRepository.Add(teacherAssignment);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new TeacherAssignmentDto(
             teacherAssignment.Id,
@@ -69,7 +76,7 @@ public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<Assign
 
     public async Task<Result<IReadOnlyList<TeacherAssignmentDto>>> GetForTeacherAsync(Guid? teacherUserId, Guid? classId, Guid? subjectId, CancellationToken cancellationToken)
     {
-        var query = dbContext.TeacherAssignments
+        var query = teacherAssignmentRepository.Query()
             .AsNoTracking()
             .Include(ta => ta.TeacherUser)
             .Include(ta => ta.Class)
@@ -101,15 +108,15 @@ public class TeacherAssignmentService(IAppDbContext dbContext, IValidator<Assign
 
     public async Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken)
     {
-        var teacherAssignment = await dbContext.TeacherAssignments.FirstOrDefaultAsync(ta => ta.Id == id, cancellationToken);
+        var teacherAssignment = await teacherAssignmentRepository.Query().FirstOrDefaultAsync(ta => ta.Id == id, cancellationToken);
 
         if (teacherAssignment is null)
         {
             return Result.Failure("Teacher assignment not found.");
         }
 
-        dbContext.TeacherAssignments.Remove(teacherAssignment);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        teacherAssignmentRepository.Remove(teacherAssignment);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

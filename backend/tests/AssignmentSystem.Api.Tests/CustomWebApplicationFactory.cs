@@ -59,10 +59,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.RemoveAll(typeof(IDbContextOptionsConfiguration<AppDbContext>));
             services.RemoveAll<AppDbContext>();
-            services.RemoveAll<IAppDbContext>();
 
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(_connection));
-            services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
         });
     }
 

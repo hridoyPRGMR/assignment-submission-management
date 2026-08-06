@@ -11,7 +11,14 @@ public class CreateAssignmentCommandHandlerTests
     private static readonly DateTime Now = DateTime.UtcNow;
 
     private static AssignmentService CreateService(AssignmentSystem.Infrastructure.Persistence.AppDbContext dbContext) =>
-        new(dbContext, new CreateAssignmentInputValidator(), new UpdateAssignmentInputValidator());
+        new(
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.AssignmentRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.TeacherAssignmentRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.SubmissionRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.StudentEnrollmentRepository(dbContext),
+            dbContext,
+            new CreateAssignmentInputValidator(),
+            new UpdateAssignmentInputValidator());
 
     [Fact]
     public async Task Create_when_teacher_is_not_assigned_to_class_and_subject_should_fail()

@@ -2,6 +2,7 @@ using AssignmentSystem.Application.Features.Submissions;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
+using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
 using Xunit;
 
@@ -13,6 +14,9 @@ public class GradeSubmissionCommandHandlerTests
 
     private static SubmissionService CreateService(AppDbContext dbContext) =>
         new(
+            new SubmissionRepository(dbContext),
+            new AssignmentRepository(dbContext),
+            new StudentEnrollmentRepository(dbContext),
             dbContext,
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),

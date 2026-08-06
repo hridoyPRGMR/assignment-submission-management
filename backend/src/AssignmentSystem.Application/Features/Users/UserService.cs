@@ -10,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AssignmentSystem.Application.Features.Users;
 
 public class UserService(
-    IAppDbContext dbContext,
+    IUserRepository userRepository,
+    IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IValidator<CreateUserInput> createValidator,
     IValidator<UpdateUserInput> updateValidator) : IUserService
@@ -25,7 +26,7 @@ public class UserService(
 
         var normalizedEmail = input.Email.Trim().ToLowerInvariant();
 
-        var emailInUse = await dbContext.Users.AnyAsync(u => u.Email == normalizedEmail, cancellationToken);
+        var emailInUse = await userRepository.Query().AnyAsync(u => u.Email == normalizedEmail, cancellationToken);
         if (emailInUse)
         {
             return Result.Failure<UserDto>("A user with this email already exists.");
@@ -39,8 +40,8 @@ public class UserService(
             return Result.Failure<UserDto>(userResult.Error!);
         }
 
-        dbContext.Users.Add(userResult.Value);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        userRepository.Add(userResult.Value);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(userResult.Value.ToDto());
     }
@@ -53,7 +54,7 @@ public class UserService(
             return Result.Failure<UserDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == input.Id, cancellationToken);
+        var user = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == input.Id, cancellationToken);
 
         if (user is null)
         {
@@ -61,14 +62,14 @@ public class UserService(
         }
 
         user.UpdateProfile(input.FullName);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(user.ToDto());
     }
 
     public async Task<Result> SetActiveStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken)
     {
-        var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        var user = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
         if (user is null)
         {
@@ -84,14 +85,14 @@ public class UserService(
             user.Deactivate();
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }
 
     public async Task<Result<UserDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        var user = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+        var user = await userRepository.Query().AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
         return user is null
             ? Result.Failure<UserDto>("User not found.")
@@ -100,7 +101,7 @@ public class UserService(
 
     public async Task<Result<PagedResult<UserDto>>> GetListAsync(int page, int pageSize, UserRole? role, CancellationToken cancellationToken)
     {
-        var query = dbContext.Users.AsNoTracking().OrderBy(u => u.FullName).AsQueryable();
+        var query = userRepository.Query().AsNoTracking().OrderBy(u => u.FullName).AsQueryable();
 
         if (role.HasValue)
         {

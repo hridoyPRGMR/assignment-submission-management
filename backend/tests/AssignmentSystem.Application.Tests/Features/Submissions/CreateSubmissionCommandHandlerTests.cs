@@ -12,6 +12,9 @@ public class CreateSubmissionCommandHandlerTests
 
     private static SubmissionService CreateService(AssignmentSystem.Infrastructure.Persistence.AppDbContext dbContext) =>
         new(
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.SubmissionRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.AssignmentRepository(dbContext),
+            new AssignmentSystem.Infrastructure.Persistence.Repositories.StudentEnrollmentRepository(dbContext),
             dbContext,
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),

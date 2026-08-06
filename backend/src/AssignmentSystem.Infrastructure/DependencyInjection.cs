@@ -1,6 +1,7 @@
 using AssignmentSystem.Application.Abstractions;
 using AssignmentSystem.Application.Abstractions.Persistence;
 using AssignmentSystem.Infrastructure.Persistence;
+using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using AssignmentSystem.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +18,17 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
-        services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+        services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IClassRepository, ClassRepository>();
+        services.AddScoped<ISubjectRepository, SubjectRepository>();
+        services.AddScoped<IClassSubjectRepository, ClassSubjectRepository>();
+        services.AddScoped<ITeacherAssignmentRepository, TeacherAssignmentRepository>();
+        services.AddScoped<IStudentEnrollmentRepository, StudentEnrollmentRepository>();
+        services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<ISubmissionRepository, SubmissionRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();

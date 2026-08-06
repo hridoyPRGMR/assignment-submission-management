@@ -7,7 +7,10 @@ using Microsoft.EntityFrameworkCore;
 namespace AssignmentSystem.Application.Features.Submissions;
 
 public class SubmissionService(
-    IAppDbContext dbContext,
+    ISubmissionRepository submissionRepository,
+    IAssignmentRepository assignmentRepository,
+    IStudentEnrollmentRepository studentEnrollmentRepository,
+    IUnitOfWork unitOfWork,
     IValidator<CreateSubmissionInput> createValidator,
     IValidator<GradeSubmissionInput> gradeValidator,
     IValidator<ReturnSubmissionForRevisionInput> returnForRevisionValidator,
@@ -21,14 +24,14 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var assignment = await dbContext.Assignments.FirstOrDefaultAsync(a => a.Id == input.AssignmentId, cancellationToken);
+        var assignment = await assignmentRepository.Query().FirstOrDefaultAsync(a => a.Id == input.AssignmentId, cancellationToken);
 
         if (assignment is null || assignment.Status != AssignmentStatus.Published)
         {
             return Result.Failure<SubmissionDto>("Assignment not found.");
         }
 
-        var isEnrolled = await dbContext.StudentEnrollments.AnyAsync(
+        var isEnrolled = await studentEnrollmentRepository.Query().AnyAsync(
             e => e.StudentUserId == input.StudentUserId && e.ClassId == assignment.ClassId, cancellationToken);
 
         if (!isEnrolled)
@@ -36,7 +39,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>("You are not enrolled in the class this assignment belongs to.");
         }
 
-        var alreadySubmitted = await dbContext.Submissions.AnyAsync(
+        var alreadySubmitted = await submissionRepository.Query().AnyAsync(
             s => s.AssignmentId == input.AssignmentId && s.StudentUserId == input.StudentUserId, cancellationToken);
 
         if (alreadySubmitted)
@@ -52,10 +55,10 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(submissionResult.Error!);
         }
 
-        dbContext.Submissions.Add(submissionResult.Value);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        submissionRepository.Add(submissionResult.Value);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var created = await dbContext.Submissions
+        var created = await submissionRepository.Query()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
             .FirstAsync(s => s.Id == submissionResult.Value.Id, cancellationToken);
@@ -71,7 +74,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
             .FirstOrDefaultAsync(s => s.Id == input.Id, cancellationToken);
@@ -93,7 +96,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(updateResult.Error!);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(submission.ToDto());
     }
@@ -106,7 +109,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
             .FirstOrDefaultAsync(s => s.Id == input.SubmissionId, cancellationToken);
@@ -129,7 +132,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(result.Error!);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(submission.ToDto());
     }
@@ -143,7 +146,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
             .FirstOrDefaultAsync(s => s.Id == input.SubmissionId, cancellationToken);
@@ -164,7 +167,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(result.Error!);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(submission.ToDto());
     }
@@ -172,7 +175,7 @@ public class SubmissionService(
     public async Task<Result<SubmissionDto>> StartReviewAsync(
         Guid submissionId, Guid requestingTeacherUserId, CancellationToken cancellationToken)
     {
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
             .FirstOrDefaultAsync(s => s.Id == submissionId, cancellationToken);
@@ -193,7 +196,7 @@ public class SubmissionService(
             return Result.Failure<SubmissionDto>(result.Error!);
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(submission.ToDto());
     }
@@ -201,7 +204,7 @@ public class SubmissionService(
     public async Task<Result<IReadOnlyList<SubmissionDto>>> GetMySubmissionsAsync(
         Guid studentUserId, CancellationToken cancellationToken)
     {
-        var submissions = await dbContext.Submissions
+        var submissions = await submissionRepository.Query()
             .AsNoTracking()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
@@ -214,7 +217,7 @@ public class SubmissionService(
 
     public async Task<Result<SubmissionDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .AsNoTracking()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
@@ -228,7 +231,7 @@ public class SubmissionService(
     public async Task<Result<SubmissionDto?>> GetForAssignmentAsync(
         Guid assignmentId, Guid studentUserId, CancellationToken cancellationToken)
     {
-        var submission = await dbContext.Submissions
+        var submission = await submissionRepository.Query()
             .AsNoTracking()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)
@@ -241,7 +244,7 @@ public class SubmissionService(
     public async Task<Result<IReadOnlyList<SubmissionDto>>> GetListForAssignmentAsync(
         Guid assignmentId, Guid requestingUserId, bool isAdmin, CancellationToken cancellationToken)
     {
-        var assignment = await dbContext.Assignments.AsNoTracking()
+        var assignment = await assignmentRepository.Query().AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == assignmentId, cancellationToken);
 
         if (assignment is null)
@@ -254,7 +257,7 @@ public class SubmissionService(
             return Result.Failure<IReadOnlyList<SubmissionDto>>("You do not own this assignment.");
         }
 
-        var submissions = await dbContext.Submissions
+        var submissions = await submissionRepository.Query()
             .AsNoTracking()
             .Include(s => s.Assignment)
             .Include(s => s.StudentUser)

@@ -28,13 +28,13 @@ public static class DataSeeder
         dbContext.Classes.Add(schoolClass);
         dbContext.Subjects.Add(subject);
 
-        var classSubject = ClassSubject.Create(schoolClass.Id, subject.Id);
+        var classSubject = ClassSubject.Create(schoolClass.Id, subject.Id, now);
         dbContext.ClassSubjects.Add(classSubject);
 
-        var teacherAssignment = TeacherAssignment.Create(teacher.Id, schoolClass.Id, subject.Id);
+        var teacherAssignment = TeacherAssignment.Create(teacher.Id, schoolClass.Id, subject.Id, now);
         dbContext.TeacherAssignments.Add(teacherAssignment);
 
-        var studentEnrollment = StudentEnrollment.Create(student.Id, schoolClass.Id);
+        var studentEnrollment = StudentEnrollment.Create(student.Id, schoolClass.Id, now);
         dbContext.StudentEnrollments.Add(studentEnrollment);
 
         var draftAssignment = Domain.Entities.Assignment.Create(
@@ -56,7 +56,7 @@ public static class DataSeeder
             now.AddDays(14),
             100,
             now).Value;
-        publishedAssignment.Publish();
+        publishedAssignment.Publish(now);
 
         dbContext.Assignments.AddRange(draftAssignment, publishedAssignment);
 

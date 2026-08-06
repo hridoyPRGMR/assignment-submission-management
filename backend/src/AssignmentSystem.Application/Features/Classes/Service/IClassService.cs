@@ -5,9 +5,9 @@ namespace AssignmentSystem.Application.Features.Classes;
 
 public interface IClassService
 {
-    Task<Result<ClassDto>> CreateAsync(CreateClassInput input, CancellationToken cancellationToken);
+    Task<Result<ClassDto>> CreateAsync(CreateClassInput input, Guid actorUserId, CancellationToken cancellationToken);
 
-    Task<Result<ClassDto>> UpdateAsync(UpdateClassInput input, CancellationToken cancellationToken);
+    Task<Result<ClassDto>> UpdateAsync(UpdateClassInput input, Guid actorUserId, CancellationToken cancellationToken);
 
     Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken);
 

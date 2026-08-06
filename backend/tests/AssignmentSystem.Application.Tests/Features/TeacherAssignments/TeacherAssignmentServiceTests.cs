@@ -11,6 +11,7 @@ namespace AssignmentSystem.Application.Tests.Features.TeacherAssignments;
 public class TeacherAssignmentServiceTests
 {
     private static readonly DateTime Now = DateTime.UtcNow;
+    private static readonly Guid AdminId = Guid.NewGuid();
 
     private static TeacherAssignmentService CreateService(AppDbContext dbContext) =>
         new(
@@ -31,7 +32,7 @@ public class TeacherAssignmentServiceTests
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subject);
         dbContext.Users.Add(teacher);
-        dbContext.ClassSubjects.Add(ClassSubject.Create(classEntity.Id, subject.Id));
+        dbContext.ClassSubjects.Add(ClassSubject.Create(classEntity.Id, subject.Id, Now));
         dbContext.SaveChanges();
 
         return (classEntity, subject, teacher);
@@ -54,7 +55,7 @@ public class TeacherAssignmentServiceTests
         var service = CreateService(dbContext);
 
         var result = await service.AssignAsync(
-            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), CancellationToken.None);
+            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not associated");
@@ -68,11 +69,12 @@ public class TeacherAssignmentServiceTests
 
         var service = CreateService(dbContext);
 
-        var first = await service.AssignAsync(new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), CancellationToken.None);
+        var first = await service.AssignAsync(
+            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
         first.IsSuccess.Should().BeTrue();
 
         var duplicate = await service.AssignAsync(
-            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), CancellationToken.None);
+            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
 
         duplicate.IsFailure.Should().BeTrue();
         duplicate.Error.Should().Contain("already assigned");
@@ -90,13 +92,13 @@ public class TeacherAssignmentServiceTests
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subject);
         dbContext.Users.Add(student);
-        dbContext.ClassSubjects.Add(ClassSubject.Create(classEntity.Id, subject.Id));
+        dbContext.ClassSubjects.Add(ClassSubject.Create(classEntity.Id, subject.Id, Now));
         await dbContext.SaveChangesAsync();
 
         var service = CreateService(dbContext);
 
         var result = await service.AssignAsync(
-            new AssignTeacherInput(student.Id, classEntity.Id, subject.Id), CancellationToken.None);
+            new AssignTeacherInput(student.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not an active teacher");

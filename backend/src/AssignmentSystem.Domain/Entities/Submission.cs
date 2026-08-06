@@ -3,9 +3,8 @@ using AssignmentSystem.Domain.Enums;
 
 namespace AssignmentSystem.Domain.Entities;
 
-public class Submission
+public class Submission : AuditableEntity
 {
-    public Guid Id { get; private set; }
     public Guid AssignmentId { get; private set; }
     public Assignment Assignment { get; private set; } = null!;
     public Guid StudentUserId { get; private set; }
@@ -24,7 +23,6 @@ public class Submission
 
     private Submission(Guid id, Guid assignmentId, Guid studentUserId, string content, string? fileUrl, DateTime nowUtc)
     {
-        Id = id;
         AssignmentId = assignmentId;
         StudentUserId = studentUserId;
         Content = content;
@@ -32,6 +30,7 @@ public class Submission
         SubmittedAtUtc = nowUtc;
         IsLate = false;
         Status = SubmissionStatus.Submitted;
+        InitializeAudit(id, nowUtc, studentUserId);
     }
 
     public static Result<Submission> Create(
@@ -55,7 +54,7 @@ public class Submission
         return Result.Success(new Submission(Guid.NewGuid(), assignmentId, studentUserId, content.Trim(), fileUrl, nowUtc));
     }
 
-    public Result Update(string content, string? fileUrl, DateTime assignmentDeadlineUtc, DateTime nowUtc)
+    public Result Update(string content, string? fileUrl, DateTime assignmentDeadlineUtc, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status != SubmissionStatus.Submitted && Status != SubmissionStatus.ReturnedForRevision)
         {
@@ -87,10 +86,11 @@ public class Submission
             GradedByUserId = null;
         }
 
+        TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
 
-    public Result StartReview()
+    public Result StartReview(DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status != SubmissionStatus.Submitted)
         {
@@ -98,6 +98,7 @@ public class Submission
         }
 
         Status = SubmissionStatus.UnderReview;
+        TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
 
@@ -124,10 +125,11 @@ public class Submission
         GradedAtUtc = nowUtc;
         GradedByUserId = graderUserId;
 
+        TouchUpdated(nowUtc, graderUserId);
         return Result.Success();
     }
 
-    public Result ReturnForRevision(string feedback)
+    public Result ReturnForRevision(string feedback, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status != SubmissionStatus.UnderReview && Status != SubmissionStatus.Graded)
         {
@@ -145,6 +147,7 @@ public class Submission
         GradedAtUtc = null;
         GradedByUserId = null;
 
+        TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
 }

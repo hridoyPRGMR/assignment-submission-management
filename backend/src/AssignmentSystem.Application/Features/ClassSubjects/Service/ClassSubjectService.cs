@@ -14,7 +14,7 @@ public class ClassSubjectService(
     IUnitOfWork unitOfWork,
     IValidator<AssignSubjectToClassInput> assignValidator) : IClassSubjectService
 {
-    public async Task<Result<ClassSubjectDto>> AssignAsync(AssignSubjectToClassInput input, CancellationToken cancellationToken)
+    public async Task<Result<ClassSubjectDto>> AssignAsync(AssignSubjectToClassInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await assignValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -42,7 +42,7 @@ public class ClassSubjectService(
             return Result.Failure<ClassSubjectDto>("This subject is already associated with the class.");
         }
 
-        var classSubject = ClassSubject.Create(input.ClassId, input.SubjectId);
+        var classSubject = ClassSubject.Create(input.ClassId, input.SubjectId, DateTime.UtcNow, actorUserId);
         classSubjectRepository.Add(classSubject);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Classes;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,9 @@ namespace AssignmentSystem.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public class ClassesController(IClassService classService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [HttpGet]
     public async Task<IActionResult> GetClasses(
         [FromQuery] int page = 1,
@@ -28,14 +32,15 @@ public class ClassesController(IClassService classService) : ApiControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateClass(CreateClassInput input, CancellationToken cancellationToken)
     {
-        var result = await classService.CreateAsync(input, cancellationToken);
+        var result = await classService.CreateAsync(input, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateClass(Guid id, UpdateClassRequest request, CancellationToken cancellationToken)
     {
-        var result = await classService.UpdateAsync(new UpdateClassInput(id, request.Name, request.Description), cancellationToken);
+        var result = await classService.UpdateAsync(
+            new UpdateClassInput(id, request.Name, request.Description), CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 

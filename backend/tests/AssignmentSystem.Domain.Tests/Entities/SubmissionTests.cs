@@ -72,7 +72,7 @@ public class SubmissionTests
     public void Update_while_UnderReview_should_fail()
     {
         var submission = CreateValidSubmission();
-        submission.StartReview();
+        submission.StartReview(Now);
 
         var result = submission.Update("Updated answer", null, Now.AddDays(1), Now);
 
@@ -84,7 +84,7 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.StartReview();
+        var result = submission.StartReview(Now);
 
         result.IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.UnderReview);
@@ -94,10 +94,10 @@ public class SubmissionTests
     public void StartReview_from_Graded_should_fail()
     {
         var submission = CreateValidSubmission();
-        submission.StartReview();
+        submission.StartReview(Now);
         submission.Grade(80, "Good work", MaxMarks, TeacherId, Now);
 
-        var result = submission.StartReview();
+        var result = submission.StartReview(Now);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -143,8 +143,8 @@ public class SubmissionTests
     public void Grade_a_ReturnedForRevision_submission_should_fail()
     {
         var submission = CreateValidSubmission();
-        submission.StartReview();
-        submission.ReturnForRevision("Please redo section 2");
+        submission.StartReview(Now);
+        submission.ReturnForRevision("Please redo section 2", Now);
 
         var result = submission.Grade(85, "Great job", MaxMarks, TeacherId, Now);
 
@@ -155,9 +155,9 @@ public class SubmissionTests
     public void ReturnForRevision_from_UnderReview_should_succeed_and_clear_marks()
     {
         var submission = CreateValidSubmission();
-        submission.StartReview();
+        submission.StartReview(Now);
 
-        var result = submission.ReturnForRevision("Please redo section 2");
+        var result = submission.ReturnForRevision("Please redo section 2", Now);
 
         result.IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.ReturnedForRevision);
@@ -169,7 +169,7 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        var result = submission.ReturnForRevision("Please redo section 2");
+        var result = submission.ReturnForRevision("Please redo section 2", Now);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -179,13 +179,13 @@ public class SubmissionTests
     {
         var submission = CreateValidSubmission();
 
-        submission.StartReview().IsSuccess.Should().BeTrue();
+        submission.StartReview(Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.UnderReview);
 
         submission.Grade(90, "Nicely done", MaxMarks, TeacherId, Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.Graded);
 
-        submission.ReturnForRevision("Actually, please expand on point 3").IsSuccess.Should().BeTrue();
+        submission.ReturnForRevision("Actually, please expand on point 3", Now).IsSuccess.Should().BeTrue();
         submission.Status.Should().Be(SubmissionStatus.ReturnedForRevision);
         submission.Marks.Should().BeNull();
 

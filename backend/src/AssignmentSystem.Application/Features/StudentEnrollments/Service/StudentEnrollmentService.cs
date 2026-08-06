@@ -16,7 +16,7 @@ public class StudentEnrollmentService(
     IValidator<EnrollStudentInput> enrollValidator)
     : IStudentEnrollmentService
 {
-    public async Task<Result<StudentEnrollmentDto>> EnrollAsync(EnrollStudentInput input, CancellationToken cancellationToken)
+    public async Task<Result<StudentEnrollmentDto>> EnrollAsync(EnrollStudentInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await enrollValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -44,7 +44,7 @@ public class StudentEnrollmentService(
             return Result.Failure<StudentEnrollmentDto>("This student is already enrolled in this class.");
         }
 
-        var enrollment = StudentEnrollment.Create(input.StudentUserId, input.ClassId);
+        var enrollment = StudentEnrollment.Create(input.StudentUserId, input.ClassId, DateTime.UtcNow, actorUserId);
         studentEnrollmentRepository.Add(enrollment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

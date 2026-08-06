@@ -37,10 +37,10 @@ public class UserTests
     {
         var user = User.Create("student@school.edu", "hash", "John Doe", UserRole.Student, Now).Value;
 
-        user.Deactivate();
+        user.Deactivate(Now);
         user.IsActive.Should().BeFalse();
 
-        user.Activate();
+        user.Activate(Now);
         user.IsActive.Should().BeTrue();
     }
 }

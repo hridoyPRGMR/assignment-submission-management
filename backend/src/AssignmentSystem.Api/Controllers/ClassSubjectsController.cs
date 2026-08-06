@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.ClassSubjects;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,9 @@ namespace AssignmentSystem.Api.Controllers;
 [Route("api/v1/class-subjects")]
 public class ClassSubjectsController(IClassSubjectService classSubjectService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [HttpGet]
     public async Task<IActionResult> GetClassSubjects(
         [FromQuery] Guid? classId,
@@ -22,7 +26,7 @@ public class ClassSubjectsController(IClassSubjectService classSubjectService) :
     [HttpPost]
     public async Task<IActionResult> AssignSubjectToClass(AssignSubjectToClassInput input, CancellationToken cancellationToken)
     {
-        var result = await classSubjectService.AssignAsync(input, cancellationToken);
+        var result = await classSubjectService.AssignAsync(input, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 

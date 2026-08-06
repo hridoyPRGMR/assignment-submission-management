@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Users;
 using AssignmentSystem.Domain.Enums;
@@ -9,6 +10,9 @@ namespace AssignmentSystem.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public class UsersController(IUserService userService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [HttpGet]
     public async Task<IActionResult> GetUsers(
         [FromQuery] int page = 1,
@@ -30,28 +34,28 @@ public class UsersController(IUserService userService) : ApiControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateUser(CreateUserInput input, CancellationToken cancellationToken)
     {
-        var result = await userService.CreateAsync(input, cancellationToken);
+        var result = await userService.CreateAsync(input, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateUser(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var result = await userService.UpdateAsync(new UpdateUserInput(id, request.FullName), cancellationToken);
+        var result = await userService.UpdateAsync(new UpdateUserInput(id, request.FullName), CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("{id:guid}/activate")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken cancellationToken)
     {
-        var result = await userService.SetActiveStatusAsync(id, true, cancellationToken);
+        var result = await userService.SetActiveStatusAsync(id, true, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPost("{id:guid}/deactivate")]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken cancellationToken)
     {
-        var result = await userService.SetActiveStatusAsync(id, false, cancellationToken);
+        var result = await userService.SetActiveStatusAsync(id, false, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 }

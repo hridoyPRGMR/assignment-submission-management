@@ -16,7 +16,7 @@ public class UserService(
     IValidator<CreateUserInput> createValidator,
     IValidator<UpdateUserInput> updateValidator) : IUserService
 {
-    public async Task<Result<UserDto>> CreateAsync(CreateUserInput input, CancellationToken cancellationToken)
+    public async Task<Result<UserDto>> CreateAsync(CreateUserInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await createValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -34,7 +34,7 @@ public class UserService(
 
         var passwordHash = passwordHasher.Hash(input.Password);
 
-        var userResult = User.Create(input.Email, passwordHash, input.FullName, input.Role, DateTime.UtcNow);
+        var userResult = User.Create(input.Email, passwordHash, input.FullName, input.Role, DateTime.UtcNow, actorUserId);
         if (userResult.IsFailure)
         {
             return Result.Failure<UserDto>(userResult.Error!);
@@ -46,7 +46,7 @@ public class UserService(
         return Result.Success(userResult.Value.ToDto());
     }
 
-    public async Task<Result<UserDto>> UpdateAsync(UpdateUserInput input, CancellationToken cancellationToken)
+    public async Task<Result<UserDto>> UpdateAsync(UpdateUserInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await updateValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -61,13 +61,13 @@ public class UserService(
             return Result.Failure<UserDto>("User not found.");
         }
 
-        user.UpdateProfile(input.FullName);
+        user.UpdateProfile(input.FullName, DateTime.UtcNow, actorUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(user.ToDto());
     }
 
-    public async Task<Result> SetActiveStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken)
+    public async Task<Result> SetActiveStatusAsync(Guid id, bool isActive, Guid actorUserId, CancellationToken cancellationToken)
     {
         var user = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
@@ -78,11 +78,11 @@ public class UserService(
 
         if (isActive)
         {
-            user.Activate();
+            user.Activate(DateTime.UtcNow, actorUserId);
         }
         else
         {
-            user.Deactivate();
+            user.Deactivate(DateTime.UtcNow, actorUserId);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

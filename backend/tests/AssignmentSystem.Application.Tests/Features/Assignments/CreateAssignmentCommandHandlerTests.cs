@@ -51,7 +51,7 @@ public class CreateAssignmentCommandHandlerTests
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subjectEntity);
         dbContext.Users.Add(teacher);
-        dbContext.TeacherAssignments.Add(TeacherAssignment.Create(teacher.Id, classEntity.Id, subjectEntity.Id));
+        dbContext.TeacherAssignments.Add(TeacherAssignment.Create(teacher.Id, classEntity.Id, subjectEntity.Id, Now));
         await dbContext.SaveChangesAsync();
 
         var service = CreateService(dbContext);

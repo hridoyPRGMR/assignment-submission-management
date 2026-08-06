@@ -1,8 +1,9 @@
+using AssignmentSystem.Domain.Common;
+
 namespace AssignmentSystem.Domain.Entities;
 
-public class ClassSubject
+public class ClassSubject : AuditableEntity
 {
-    public Guid Id { get; private set; }
     public Guid ClassId { get; private set; }
     public Class Class { get; private set; } = null!;
     public Guid SubjectId { get; private set; }
@@ -10,13 +11,13 @@ public class ClassSubject
 
     private ClassSubject() { }
 
-    private ClassSubject(Guid id, Guid classId, Guid subjectId)
+    private ClassSubject(Guid id, Guid classId, Guid subjectId, DateTime nowUtc, Guid? actorUserId)
     {
-        Id = id;
         ClassId = classId;
         SubjectId = subjectId;
+        InitializeAudit(id, nowUtc, actorUserId);
     }
 
-    public static ClassSubject Create(Guid classId, Guid subjectId) =>
-        new(Guid.NewGuid(), classId, subjectId);
+    public static ClassSubject Create(Guid classId, Guid subjectId, DateTime nowUtc, Guid? actorUserId = null) =>
+        new(Guid.NewGuid(), classId, subjectId, nowUtc, actorUserId);
 }

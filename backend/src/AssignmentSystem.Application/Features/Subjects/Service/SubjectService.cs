@@ -13,7 +13,7 @@ public class SubjectService(
     IValidator<CreateSubjectInput> createValidator,
     IValidator<UpdateSubjectInput> updateValidator) : ISubjectService
 {
-    public async Task<Result<SubjectDto>> CreateAsync(CreateSubjectInput input, CancellationToken cancellationToken)
+    public async Task<Result<SubjectDto>> CreateAsync(CreateSubjectInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await createValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -21,7 +21,7 @@ public class SubjectService(
             return Result.Failure<SubjectDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var subjectResult = Domain.Entities.Subject.Create(input.Name, input.Description, DateTime.UtcNow);
+        var subjectResult = Domain.Entities.Subject.Create(input.Name, input.Description, DateTime.UtcNow, actorUserId);
         if (subjectResult.IsFailure)
         {
             return Result.Failure<SubjectDto>(subjectResult.Error!);
@@ -33,7 +33,7 @@ public class SubjectService(
         return Result.Success(subjectResult.Value.ToDto());
     }
 
-    public async Task<Result<SubjectDto>> UpdateAsync(UpdateSubjectInput input, CancellationToken cancellationToken)
+    public async Task<Result<SubjectDto>> UpdateAsync(UpdateSubjectInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await updateValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -48,7 +48,7 @@ public class SubjectService(
             return Result.Failure<SubjectDto>("Subject not found.");
         }
 
-        subject.Update(input.Name, input.Description);
+        subject.Update(input.Name, input.Description, DateTime.UtcNow, actorUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(subject.ToDto());

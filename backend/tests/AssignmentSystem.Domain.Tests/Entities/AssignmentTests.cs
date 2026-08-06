@@ -59,7 +59,7 @@ public class AssignmentTests
     {
         var assignment = CreateValidAssignment();
 
-        var result = assignment.Publish();
+        var result = assignment.Publish(Now);
 
         result.IsSuccess.Should().BeTrue();
         assignment.Status.Should().Be(AssignmentStatus.Published);
@@ -69,9 +69,9 @@ public class AssignmentTests
     public void Publish_an_already_published_assignment_should_fail()
     {
         var assignment = CreateValidAssignment();
-        assignment.Publish();
+        assignment.Publish(Now);
 
-        var result = assignment.Publish();
+        var result = assignment.Publish(Now);
 
         result.IsFailure.Should().BeTrue();
     }
@@ -81,7 +81,7 @@ public class AssignmentTests
     {
         var assignment = CreateValidAssignment();
 
-        var result = assignment.Unpublish();
+        var result = assignment.Unpublish(Now);
 
         result.IsFailure.Should().BeTrue();
     }

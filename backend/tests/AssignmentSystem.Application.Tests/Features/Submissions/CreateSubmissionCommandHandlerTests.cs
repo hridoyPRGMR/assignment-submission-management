@@ -31,7 +31,7 @@ public class CreateSubmissionCommandHandlerTests
 
         var assignment = AssignmentSystem.Domain.Entities.Assignment.Create(
             "Homework", "Description", classEntity.Id, subjectEntity.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
-        assignment.Publish();
+        assignment.Publish(Now);
 
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subjectEntity);
@@ -40,7 +40,7 @@ public class CreateSubmissionCommandHandlerTests
 
         if (enrollStudent)
         {
-            dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, classEntity.Id));
+            dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, classEntity.Id, Now));
         }
 
         dbContext.SaveChanges();
@@ -78,7 +78,7 @@ public class CreateSubmissionCommandHandlerTests
         dbContext.Subjects.Add(subjectEntity);
         dbContext.Users.AddRange(teacher, student);
         dbContext.Assignments.Add(draftAssignment);
-        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, classEntity.Id));
+        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, classEntity.Id, Now));
         await dbContext.SaveChangesAsync();
 
         var service = CreateService(dbContext);

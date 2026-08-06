@@ -14,7 +14,7 @@ public class ClassService(
     IValidator<CreateClassInput> createValidator,
     IValidator<UpdateClassInput> updateValidator) : IClassService
 {
-    public async Task<Result<ClassDto>> CreateAsync(CreateClassInput input, CancellationToken cancellationToken)
+    public async Task<Result<ClassDto>> CreateAsync(CreateClassInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await createValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -22,7 +22,7 @@ public class ClassService(
             return Result.Failure<ClassDto>(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
         }
 
-        var classResult = Domain.Entities.Class.Create(input.Name, input.Description, DateTime.UtcNow);
+        var classResult = Domain.Entities.Class.Create(input.Name, input.Description, DateTime.UtcNow, actorUserId);
         if (classResult.IsFailure)
         {
             return Result.Failure<ClassDto>(classResult.Error!);
@@ -34,7 +34,7 @@ public class ClassService(
         return Result.Success(classResult.Value.ToDto());
     }
 
-    public async Task<Result<ClassDto>> UpdateAsync(UpdateClassInput input, CancellationToken cancellationToken)
+    public async Task<Result<ClassDto>> UpdateAsync(UpdateClassInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await updateValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -49,7 +49,7 @@ public class ClassService(
             return Result.Failure<ClassDto>("Class not found.");
         }
 
-        classEntity.Update(input.Name, input.Description);
+        classEntity.Update(input.Name, input.Description, DateTime.UtcNow, actorUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(classEntity.ToDto());

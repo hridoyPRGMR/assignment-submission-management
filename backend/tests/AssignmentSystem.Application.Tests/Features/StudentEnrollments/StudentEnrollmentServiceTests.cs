@@ -11,6 +11,7 @@ namespace AssignmentSystem.Application.Tests.Features.StudentEnrollments;
 public class StudentEnrollmentServiceTests
 {
     private static readonly DateTime Now = DateTime.UtcNow;
+    private static readonly Guid AdminId = Guid.NewGuid();
 
     private static StudentEnrollmentService CreateService(AppDbContext dbContext) =>
         new(
@@ -35,10 +36,10 @@ public class StudentEnrollmentServiceTests
 
         var service = CreateService(dbContext);
 
-        var first = await service.EnrollAsync(new EnrollStudentInput(student.Id, classEntity.Id), CancellationToken.None);
+        var first = await service.EnrollAsync(new EnrollStudentInput(student.Id, classEntity.Id), AdminId, CancellationToken.None);
         first.IsSuccess.Should().BeTrue();
 
-        var duplicate = await service.EnrollAsync(new EnrollStudentInput(student.Id, classEntity.Id), CancellationToken.None);
+        var duplicate = await service.EnrollAsync(new EnrollStudentInput(student.Id, classEntity.Id), AdminId, CancellationToken.None);
 
         duplicate.IsFailure.Should().BeTrue();
         duplicate.Error.Should().Contain("already enrolled");
@@ -58,7 +59,7 @@ public class StudentEnrollmentServiceTests
 
         var service = CreateService(dbContext);
 
-        var result = await service.EnrollAsync(new EnrollStudentInput(teacher.Id, classEntity.Id), CancellationToken.None);
+        var result = await service.EnrollAsync(new EnrollStudentInput(teacher.Id, classEntity.Id), AdminId, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not an active student");
@@ -76,10 +77,10 @@ public class StudentEnrollmentServiceTests
 
         var assignment = Assignment.Create(
             "Homework", "Description", classEntity.Id, subject.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
-        assignment.Publish();
+        assignment.Publish(Now);
 
         var submission = Submission.Create(assignment.Id, student.Id, "My answer", null, assignment.DeadlineUtc, Now).Value;
-        var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id);
+        var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id, Now);
 
         dbContext.Classes.Add(classEntity);
         dbContext.Subjects.Add(subject);
@@ -104,7 +105,7 @@ public class StudentEnrollmentServiceTests
 
         var classEntity = Class.Create("Grade 10 - A", null, Now).Value;
         var student = User.Create("student@school.edu", "hashed", "John Doe", UserRole.Student, Now).Value;
-        var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id);
+        var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id, Now);
 
         dbContext.Classes.Add(classEntity);
         dbContext.Users.Add(student);

@@ -33,7 +33,7 @@ public class GradeSubmissionCommandHandlerTests
 
         var assignment = AssignmentSystem.Domain.Entities.Assignment.Create(
             "Homework", "Description", classEntity.Id, subjectEntity.Id, owningTeacher.Id, Now.AddDays(7), 100, Now).Value;
-        assignment.Publish();
+        assignment.Publish(Now);
 
         var submission = Submission.Create(assignment.Id, student.Id, "My answer", null, assignment.DeadlineUtc, Now).Value;
 

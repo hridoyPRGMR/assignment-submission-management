@@ -6,11 +6,11 @@ namespace AssignmentSystem.Application.Features.Users;
 
 public interface IUserService
 {
-    Task<Result<UserDto>> CreateAsync(CreateUserInput input, CancellationToken cancellationToken);
+    Task<Result<UserDto>> CreateAsync(CreateUserInput input, Guid actorUserId, CancellationToken cancellationToken);
 
-    Task<Result<UserDto>> UpdateAsync(UpdateUserInput input, CancellationToken cancellationToken);
+    Task<Result<UserDto>> UpdateAsync(UpdateUserInput input, Guid actorUserId, CancellationToken cancellationToken);
 
-    Task<Result> SetActiveStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken);
+    Task<Result> SetActiveStatusAsync(Guid id, bool isActive, Guid actorUserId, CancellationToken cancellationToken);
 
     Task<Result<UserDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 

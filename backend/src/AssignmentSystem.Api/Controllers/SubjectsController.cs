@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AssignmentSystem.Api.Common;
 using AssignmentSystem.Application.Features.Subjects;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,9 @@ namespace AssignmentSystem.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public class SubjectsController(ISubjectService subjectService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [HttpGet]
     public async Task<IActionResult> GetSubjects(
         [FromQuery] int page = 1,
@@ -28,14 +32,15 @@ public class SubjectsController(ISubjectService subjectService) : ApiControllerB
     [HttpPost]
     public async Task<IActionResult> CreateSubject(CreateSubjectInput input, CancellationToken cancellationToken)
     {
-        var result = await subjectService.CreateAsync(input, cancellationToken);
+        var result = await subjectService.CreateAsync(input, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateSubject(Guid id, UpdateSubjectRequest request, CancellationToken cancellationToken)
     {
-        var result = await subjectService.UpdateAsync(new UpdateSubjectInput(id, request.Name, request.Description), cancellationToken);
+        var result = await subjectService.UpdateAsync(
+            new UpdateSubjectInput(id, request.Name, request.Description), CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 

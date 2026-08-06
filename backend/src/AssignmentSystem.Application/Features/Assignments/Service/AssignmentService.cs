@@ -87,7 +87,7 @@ public class AssignmentService(
         var hasSubmissions = await submissionRepository.Query().AnyAsync(s => s.AssignmentId == input.Id, cancellationToken);
 
         var updateResult = assignment.UpdateDetails(
-            input.Title, input.Description, input.DeadlineUtc, input.MaxMarks, hasSubmissions, DateTime.UtcNow);
+            input.Title, input.Description, input.DeadlineUtc, input.MaxMarks, hasSubmissions, DateTime.UtcNow, input.RequestingUserId);
 
         if (updateResult.IsFailure)
         {
@@ -113,7 +113,7 @@ public class AssignmentService(
             return Result.Failure("You do not own this assignment.");
         }
 
-        assignment.MarkDeleted(DateTime.UtcNow);
+        assignment.MarkDeleted(DateTime.UtcNow, requestingUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
@@ -137,7 +137,7 @@ public class AssignmentService(
             return Result.Failure<AssignmentDto>("You do not own this assignment.");
         }
 
-        var publishResult = assignment.Publish();
+        var publishResult = assignment.Publish(DateTime.UtcNow, requestingUserId);
         if (publishResult.IsFailure)
         {
             return Result.Failure<AssignmentDto>(publishResult.Error!);
@@ -166,7 +166,7 @@ public class AssignmentService(
             return Result.Failure<AssignmentDto>("You do not own this assignment.");
         }
 
-        var unpublishResult = assignment.Unpublish();
+        var unpublishResult = assignment.Unpublish(DateTime.UtcNow, requestingUserId);
         if (unpublishResult.IsFailure)
         {
             return Result.Failure<AssignmentDto>(unpublishResult.Error!);

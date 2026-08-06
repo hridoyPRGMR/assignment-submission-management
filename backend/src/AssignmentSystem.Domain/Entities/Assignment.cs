@@ -3,9 +3,8 @@ using AssignmentSystem.Domain.Enums;
 
 namespace AssignmentSystem.Domain.Entities;
 
-public class Assignment
+public class Assignment : AuditableEntity
 {
-    public Guid Id { get; private set; }
     public string Title { get; private set; } = null!;
     public string Description { get; private set; } = null!;
     public Guid ClassId { get; private set; }
@@ -18,8 +17,6 @@ public class Assignment
     public int MaxMarks { get; private set; }
     public AssignmentStatus Status { get; private set; }
     public bool IsDeleted { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
-    public DateTime UpdatedAtUtc { get; private set; }
 
     private Assignment() { }
 
@@ -34,7 +31,6 @@ public class Assignment
         int maxMarks,
         DateTime nowUtc)
     {
-        Id = id;
         Title = title;
         Description = description;
         ClassId = classId;
@@ -44,8 +40,7 @@ public class Assignment
         MaxMarks = maxMarks;
         Status = AssignmentStatus.Draft;
         IsDeleted = false;
-        CreatedAtUtc = nowUtc;
-        UpdatedAtUtc = nowUtc;
+        InitializeAudit(id, nowUtc, teacherUserId);
     }
 
     public static Result<Assignment> Create(
@@ -92,7 +87,7 @@ public class Assignment
         return Result.Success(assignment);
     }
 
-    public Result Publish()
+    public Result Publish(DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status == AssignmentStatus.Published)
         {
@@ -100,10 +95,11 @@ public class Assignment
         }
 
         Status = AssignmentStatus.Published;
+        TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
 
-    public Result Unpublish()
+    public Result Unpublish(DateTime nowUtc, Guid? actorUserId = null)
     {
         if (Status == AssignmentStatus.Draft)
         {
@@ -111,6 +107,7 @@ public class Assignment
         }
 
         Status = AssignmentStatus.Draft;
+        TouchUpdated(nowUtc, actorUserId);
         return Result.Success();
     }
 
@@ -120,7 +117,8 @@ public class Assignment
         DateTime deadlineUtc,
         int maxMarks,
         bool hasSubmissions,
-        DateTime nowUtc)
+        DateTime nowUtc,
+        Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
@@ -146,14 +144,14 @@ public class Assignment
         Description = description.Trim();
         DeadlineUtc = deadlineUtc;
         MaxMarks = maxMarks;
-        UpdatedAtUtc = nowUtc;
+        TouchUpdated(nowUtc, actorUserId);
 
         return Result.Success();
     }
 
-    public void MarkDeleted(DateTime nowUtc)
+    public void MarkDeleted(DateTime nowUtc, Guid? actorUserId = null)
     {
         IsDeleted = true;
-        UpdatedAtUtc = nowUtc;
+        TouchUpdated(nowUtc, actorUserId);
     }
 }

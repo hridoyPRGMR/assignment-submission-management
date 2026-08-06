@@ -3,30 +3,28 @@ using AssignmentSystem.Domain.Enums;
 
 namespace AssignmentSystem.Domain.Entities;
 
-public class User
+public class User : AuditableEntity
 {
-    public Guid Id { get; private set; }
     public string Email { get; private set; } = null!;
     public string PasswordHash { get; private set; } = null!;
     public string FullName { get; private set; } = null!;
     public UserRole Role { get; private set; }
     public bool IsActive { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
 
     private User() { }
 
-    private User(Guid id, string email, string passwordHash, string fullName, UserRole role, DateTime nowUtc)
+    private User(Guid id, string email, string passwordHash, string fullName, UserRole role, DateTime nowUtc, Guid? actorUserId)
     {
-        Id = id;
         Email = email;
         PasswordHash = passwordHash;
         FullName = fullName;
         Role = role;
         IsActive = true;
-        CreatedAtUtc = nowUtc;
+        InitializeAudit(id, nowUtc, actorUserId);
     }
 
-    public static Result<User> Create(string email, string passwordHash, string fullName, UserRole role, DateTime nowUtc)
+    public static Result<User> Create(
+        string email, string passwordHash, string fullName, UserRole role, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(email))
         {
@@ -43,15 +41,24 @@ public class User
             return Result.Failure<User>("Full name is required.");
         }
 
-        var user = new User(Guid.NewGuid(), email.Trim().ToLowerInvariant(), passwordHash, fullName.Trim(), role, nowUtc);
+        var user = new User(
+            Guid.NewGuid(), email.Trim().ToLowerInvariant(), passwordHash, fullName.Trim(), role, nowUtc, actorUserId);
         return Result.Success(user);
     }
 
-    public void Deactivate() => IsActive = false;
+    public void Deactivate(DateTime nowUtc, Guid? actorUserId = null)
+    {
+        IsActive = false;
+        TouchUpdated(nowUtc, actorUserId);
+    }
 
-    public void Activate() => IsActive = true;
+    public void Activate(DateTime nowUtc, Guid? actorUserId = null)
+    {
+        IsActive = true;
+        TouchUpdated(nowUtc, actorUserId);
+    }
 
-    public void ChangePasswordHash(string newPasswordHash)
+    public void ChangePasswordHash(string newPasswordHash, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(newPasswordHash))
         {
@@ -59,9 +66,10 @@ public class User
         }
 
         PasswordHash = newPasswordHash;
+        TouchUpdated(nowUtc, actorUserId);
     }
 
-    public void UpdateProfile(string fullName)
+    public void UpdateProfile(string fullName, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(fullName))
         {
@@ -69,5 +77,6 @@ public class User
         }
 
         FullName = fullName.Trim();
+        TouchUpdated(nowUtc, actorUserId);
     }
 }

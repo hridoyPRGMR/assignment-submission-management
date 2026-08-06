@@ -44,6 +44,10 @@ appsettings.Development.json
 appsettings.Local.json
 appsettings.Production.json
 
+# Visual Studio
+.vs/
+*.csproj.user
+
 # Others
 ~$*
 *~

@@ -84,7 +84,7 @@ public class LoginCommandHandlerTests
         var jwtGeneratorMock = new Mock<IJwtTokenGenerator>();
 
         var user = User.Create("teacher@school.edu", "hashed", "Jane Smith", UserRole.Teacher, DateTime.UtcNow).Value;
-        user.Deactivate();
+        user.Deactivate(DateTime.UtcNow);
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync();
 

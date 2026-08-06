@@ -17,7 +17,7 @@ public class TeacherAssignmentService(
     IValidator<AssignTeacherInput> assignValidator)
     : ITeacherAssignmentService
 {
-    public async Task<Result<TeacherAssignmentDto>> AssignAsync(AssignTeacherInput input, CancellationToken cancellationToken)
+    public async Task<Result<TeacherAssignmentDto>> AssignAsync(AssignTeacherInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
         var validation = await assignValidator.ValidateAsync(input, cancellationToken);
         if (!validation.IsValid)
@@ -60,7 +60,7 @@ public class TeacherAssignmentService(
             return Result.Failure<TeacherAssignmentDto>("This teacher is already assigned to this class and subject.");
         }
 
-        var teacherAssignment = TeacherAssignment.Create(input.TeacherUserId, input.ClassId, input.SubjectId);
+        var teacherAssignment = TeacherAssignment.Create(input.TeacherUserId, input.ClassId, input.SubjectId, DateTime.UtcNow, actorUserId);
         teacherAssignmentRepository.Add(teacherAssignment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

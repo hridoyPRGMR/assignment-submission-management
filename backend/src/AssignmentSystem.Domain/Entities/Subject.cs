@@ -2,34 +2,31 @@ using AssignmentSystem.Domain.Common;
 
 namespace AssignmentSystem.Domain.Entities;
 
-public class Subject
+public class Subject : AuditableEntity
 {
-    public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
     public string? Description { get; private set; }
-    public DateTime CreatedAtUtc { get; private set; }
 
     private Subject() { }
 
-    private Subject(Guid id, string name, string? description, DateTime nowUtc)
+    private Subject(Guid id, string name, string? description, DateTime nowUtc, Guid? actorUserId)
     {
-        Id = id;
         Name = name;
         Description = description;
-        CreatedAtUtc = nowUtc;
+        InitializeAudit(id, nowUtc, actorUserId);
     }
 
-    public static Result<Subject> Create(string name, string? description, DateTime nowUtc)
+    public static Result<Subject> Create(string name, string? description, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             return Result.Failure<Subject>("Subject name is required.");
         }
 
-        return Result.Success(new Subject(Guid.NewGuid(), name.Trim(), description?.Trim(), nowUtc));
+        return Result.Success(new Subject(Guid.NewGuid(), name.Trim(), description?.Trim(), nowUtc, actorUserId));
     }
 
-    public void Update(string name, string? description)
+    public void Update(string name, string? description, DateTime nowUtc, Guid? actorUserId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -38,5 +35,6 @@ public class Subject
 
         Name = name.Trim();
         Description = description?.Trim();
+        TouchUpdated(nowUtc, actorUserId);
     }
 }

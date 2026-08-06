@@ -4,7 +4,7 @@ namespace AssignmentSystem.Application.Features.StudentEnrollments;
 
 public interface IStudentEnrollmentService
 {
-    Task<Result<StudentEnrollmentDto>> EnrollAsync(EnrollStudentInput input, CancellationToken cancellationToken);
+    Task<Result<StudentEnrollmentDto>> EnrollAsync(EnrollStudentInput input, Guid actorUserId, CancellationToken cancellationToken);
 
     Task<Result> UnenrollAsync(Guid id, CancellationToken cancellationToken);
 

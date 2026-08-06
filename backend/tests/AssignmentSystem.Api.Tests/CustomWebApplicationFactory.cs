@@ -94,16 +94,16 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         dbContext.Classes.Add(schoolClass);
         dbContext.Subjects.Add(subject);
-        dbContext.ClassSubjects.Add(ClassSubject.Create(schoolClass.Id, subject.Id));
-        dbContext.TeacherAssignments.Add(TeacherAssignment.Create(teacher.Id, schoolClass.Id, subject.Id));
-        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, schoolClass.Id));
+        dbContext.ClassSubjects.Add(ClassSubject.Create(schoolClass.Id, subject.Id, now));
+        dbContext.TeacherAssignments.Add(TeacherAssignment.Create(teacher.Id, schoolClass.Id, subject.Id, now));
+        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, schoolClass.Id, now));
 
         var draftAssignment = AssignmentSystem.Domain.Entities.Assignment.Create(
             "Draft Assignment", "Draft description", schoolClass.Id, subject.Id, teacher.Id, now.AddDays(7), 100, now).Value;
 
         var publishedAssignment = AssignmentSystem.Domain.Entities.Assignment.Create(
             "Published Assignment", "Published description", schoolClass.Id, subject.Id, teacher.Id, now.AddDays(7), 100, now).Value;
-        publishedAssignment.Publish();
+        publishedAssignment.Publish(now);
 
         dbContext.Assignments.AddRange(draftAssignment, publishedAssignment);
 

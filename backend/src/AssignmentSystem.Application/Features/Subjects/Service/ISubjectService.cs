@@ -5,9 +5,9 @@ namespace AssignmentSystem.Application.Features.Subjects;
 
 public interface ISubjectService
 {
-    Task<Result<SubjectDto>> CreateAsync(CreateSubjectInput input, CancellationToken cancellationToken);
+    Task<Result<SubjectDto>> CreateAsync(CreateSubjectInput input, Guid actorUserId, CancellationToken cancellationToken);
 
-    Task<Result<SubjectDto>> UpdateAsync(UpdateSubjectInput input, CancellationToken cancellationToken);
+    Task<Result<SubjectDto>> UpdateAsync(UpdateSubjectInput input, Guid actorUserId, CancellationToken cancellationToken);
 
     Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken);
 

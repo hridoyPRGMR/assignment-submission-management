@@ -11,6 +11,9 @@ namespace AssignmentSystem.Api.Controllers;
 [Route("api/v1/teacher-assignments")]
 public class TeacherAssignmentsController(ITeacherAssignmentService teacherAssignmentService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [HttpGet]
     public async Task<IActionResult> GetTeacherAssignments(
         [FromQuery] Guid? teacherUserId,
@@ -22,8 +25,7 @@ public class TeacherAssignmentsController(ITeacherAssignmentService teacherAssig
 
         if (!isAdmin)
         {
-            var callerId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
-            teacherUserId = callerId;
+            teacherUserId = CurrentUserId;
         }
 
         var result = await teacherAssignmentService.GetForTeacherAsync(teacherUserId, classId, subjectId, cancellationToken);
@@ -34,7 +36,7 @@ public class TeacherAssignmentsController(ITeacherAssignmentService teacherAssig
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> AssignTeacher(AssignTeacherInput input, CancellationToken cancellationToken)
     {
-        var result = await teacherAssignmentService.AssignAsync(input, cancellationToken);
+        var result = await teacherAssignmentService.AssignAsync(input, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 

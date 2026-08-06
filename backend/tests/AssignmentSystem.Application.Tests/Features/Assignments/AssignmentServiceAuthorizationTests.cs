@@ -112,20 +112,20 @@ public class AssignmentServiceAuthorizationTests
 
         var publishedInEnrolledClass = Assignment.Create(
             "Published in enrolled class", "d", enrolledClass.Id, subject.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
-        publishedInEnrolledClass.Publish();
+        publishedInEnrolledClass.Publish(Now);
 
         var draftInEnrolledClass = Assignment.Create(
             "Draft in enrolled class", "d", enrolledClass.Id, subject.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
 
         var publishedInOtherClass = Assignment.Create(
             "Published in other class", "d", otherClass.Id, subject.Id, teacher.Id, Now.AddDays(7), 100, Now).Value;
-        publishedInOtherClass.Publish();
+        publishedInOtherClass.Publish(Now);
 
         dbContext.Classes.AddRange(enrolledClass, otherClass);
         dbContext.Subjects.Add(subject);
         dbContext.Users.AddRange(teacher, student);
         dbContext.Assignments.AddRange(publishedInEnrolledClass, draftInEnrolledClass, publishedInOtherClass);
-        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, enrolledClass.Id));
+        dbContext.StudentEnrollments.Add(StudentEnrollment.Create(student.Id, enrolledClass.Id, Now));
         await dbContext.SaveChangesAsync();
 
         var service = CreateService(dbContext);

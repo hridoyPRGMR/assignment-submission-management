@@ -305,6 +305,14 @@ key, CORS origin) is injected via environment variables from `.env` (see `.env.e
 to exist inside the image. Uploaded submission files persist in a named Docker volume (`api-uploads`) across
 restarts.
 
+If port `3000`, `5080`, or `5433` is already in use on your machine, override `FRONTEND_HOST_PORT`,
+`API_HOST_PORT`, or `POSTGRES_HOST_PORT` in `.env` (and update `FRONTEND_URL`/`NEXT_PUBLIC_API_BASE_URL` to
+match if you change the frontend or API port, since those drive CORS and the browser's API base URL).
+
+You may also see `Cannot load library libgssapi_krb5.so.2` in the API container's logs on startup — this is
+Npgsql failing to find an optional Kerberos/GSSAPI library that isn't present in the minimal container image; it
+falls back to normal password authentication and is safe to ignore.
+
 ### Option B: Run locally without Docker
 
 #### Prerequisites

@@ -15,10 +15,12 @@ public class SubjectsController(ISubjectService subjectService) : ApiControllerB
     [HttpGet]
     public async Task<IActionResult> GetSubjects(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 20,  
+        [FromQuery] string? search = null,
+        [FromQuery] string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await subjectService.GetListAsync(page, pageSize, cancellationToken);
+        var result = await subjectService.GetListAsync(page, pageSize, search, sort, cancellationToken);
         return HandleResult(result);
     }
 

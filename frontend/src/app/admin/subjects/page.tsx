@@ -2,10 +2,20 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { subjectsApi } from "@/features/subjects/subjectsApi";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { toast } from "@/components/ui/toast";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { DataTable } from "./data-table";
+import { getColumns } from "./columns";
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -17,11 +27,32 @@ type SubjectFormValues = z.infer<typeof subjectSchema>;
 export default function AdminSubjectsPage() {
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("");
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectsApi.list(),
+    queryKey: ["subjects", page, pageSize, search, sort],
+    queryFn: () => subjectsApi.list(page, pageSize, search, sort),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => subjectsApi.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
+    onError: () => setErrorMessage("Cannot delete a subject that has existing assignments."),
+  });
+
+  const columns = useMemo(
+    () =>
+      getColumns({
+        sort,
+        setSort,
+        onDelete: (id) => deleteMutation.mutate(id),
+      }),
+    [sort, deleteMutation]
+  );
 
   const {
     register,
@@ -34,51 +65,90 @@ export default function AdminSubjectsPage() {
     mutationFn: (values: SubjectFormValues) => subjectsApi.create(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      reset({ name: "", description: "" });
+      reset();
+      setOpen(false);
+      toast.add({
+        type: "success",
+        title: "Subject created",
+      })
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => subjectsApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
-    onError: () => setErrorMessage("Cannot delete a subject that has existing assignments."),
-  });
 
   return (
     <div className="flex flex-1 flex-col gap-8">
-      <h1 className="text-2xl font-semibold">Subjects</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Subjects</h1>
 
-      <form
-        onSubmit={handleSubmit((values) => createMutation.mutate(values))}
-        className="grid max-w-2xl grid-cols-1 gap-4 rounded-md border border-neutral-200 p-4 sm:grid-cols-2"
-      >
-        <div>
-          <label className="block text-sm font-medium">Name</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("name")}
-          />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
-        </div>
+        <Drawer swipeDirection="right" open={open} onOpenChange={setOpen}>
+          <DrawerTrigger render={<Button />}>
+            Create Subject
+          </DrawerTrigger>
 
-        <div>
-          <label className="block text-sm font-medium">Description</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("description")}
-          />
-        </div>
+          <DrawerContent className="w-full sm:max-w-120">
+            <DrawerHeader>
+              <DrawerTitle>Create Subject</DrawerTitle>
+              <DrawerDescription>
+                Create a new subject for assignments.
+              </DrawerDescription>
+            </DrawerHeader>
 
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {isSubmitting ? "Creating..." : "Create subject"}
-          </button>
-        </div>
-      </form>
+            <form
+              onSubmit={handleSubmit((values) => createMutation.mutate(values))}
+              className="flex flex-1 flex-col gap-6 p-6"
+            >
+              <Field>
+                <Label>Name</Label>
+
+                <Input
+                  placeholder="e.g. Mathematics"
+                  {...register("name")}
+                />
+
+                {errors.name && (
+                  <p className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </Field>
+
+              <Field>
+                <Label>Description</Label>
+
+                <Textarea
+                  rows={4}
+                  placeholder="Enter subject description..."
+                  {...register("description")}
+                />
+
+                {errors.description && (
+                  <p className="text-sm text-destructive">
+                    {errors.description.message}
+                  </p>
+                )}
+              </Field>
+
+              <DrawerFooter className="mt-auto px-0 pb-0">
+                <div className="flex justify-end gap-2">
+                  <DrawerClose render={<Button variant="outline" />}>
+                    Cancel
+                  </DrawerClose>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || createMutation.isPending}
+                  >
+                    {createMutation.isPending
+                      ? "Creating..."
+                      : "Create Subject"}
+                  </Button>
+                </div>
+              </DrawerFooter>
+            </form>
+          </DrawerContent>
+        </Drawer>
+      </div>
+
 
       {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
 
@@ -87,32 +157,83 @@ export default function AdminSubjectsPage() {
       ) : data?.items.length === 0 ? (
         <p className="text-neutral-500">No subjects yet.</p>
       ) : (
-        <div className="max-w-3xl overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left">
-                <th className="py-2">Name</th>
-                <th className="py-2">Description</th>
-                <th className="py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="w-full overflow-x-auto">
+          {/* <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-30">
+                  Action
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
               {data?.items.map((subject) => (
-                <tr key={subject.id} className="border-b border-neutral-100">
-                  <td className="py-2">{subject.name}</td>
-                  <td className="py-2">{subject.description}</td>
-                  <td className="py-2">
-                    <button
-                      onClick={() => deleteMutation.mutate(subject.id)}
-                      className="text-sm font-medium text-red-600 underline"
+                <TableRow key={subject.id}>
+                  <TableCell>{subject.name}</TableCell>
+
+                  <TableCell>
+                    {subject.description || "-"}
+                  </TableCell>
+
+                  <TableCell>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        deleteMutation.mutate(subject.id)
+                      }
                     >
                       Delete
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table> */}
+          <Input
+            placeholder="Search subjects..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <DataTable columns={columns} data={data?.items ?? []} />
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => page > 1 && setPage(page - 1)}
+                />
+              </PaginationItem>
+
+              {Array.from(
+                { length: data?.totalPages ?? 0 },
+                (_, i) => (
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      isActive={page === i + 1}
+                      onClick={() => setPage(i + 1)}
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    page < (data?.totalPages ?? 1) &&
+                    setPage(page + 1)
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
     </div>

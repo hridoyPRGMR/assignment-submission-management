@@ -1,5 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Subject } from "@/types/admin";
 import { SortType } from "@/types/sortType";
@@ -38,7 +38,12 @@ export function getColumns({
   return [
     {
       accessorKey: "id",
-      header: "Id",
+      header: "ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.original.id}
+        </span>
+      ),
     },
     {
       accessorKey: "name",
@@ -66,19 +71,27 @@ export function getColumns({
           {getSortIcon("description")}
         </Button>
       ),
-      cell: ({ row }) => row.original.description || "-",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.description || "-"}
+        </span>
+      ),
     },
     {
       id: "actions",
-      header: "Action",
+      header: () => <div className="text-right">Action</div>,
       cell: ({ row }) => (
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => onDelete(row.original.id)}
-        >
-          Delete
-        </Button>
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onDelete(row.original.id)}
+            aria-label={`Delete ${row.original.name}`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
       ),
     },
   ];

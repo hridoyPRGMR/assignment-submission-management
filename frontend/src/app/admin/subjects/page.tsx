@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,6 +12,7 @@ import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { toast } from "@/components/ui/toast";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
@@ -74,14 +76,21 @@ export default function AdminSubjectsPage() {
     },
   });
 
+  const isEmpty = data != null && data.items.length === 0;
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Subjects</h1>
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Subjects</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage system subjects and curriculum specifications.
+        </p>
+      </div>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Drawer swipeDirection="right" open={open} onOpenChange={setOpen}>
           <DrawerTrigger render={<Button />}>
+            <Plus />
             Create Subject
           </DrawerTrigger>
 
@@ -147,94 +156,91 @@ export default function AdminSubjectsPage() {
             </form>
           </DrawerContent>
         </Drawer>
+
+        <div className="w-full sm:w-72">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search subjects..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </InputGroup>
+        </div>
       </div>
 
-
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+      {errorMessage && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      )}
 
       {isLoading ? (
-        <p className="text-neutral-500">Loading subjects...</p>
-      ) : data?.items.length === 0 ? (
-        <p className="text-neutral-500">No subjects yet.</p>
-      ) : (
-        <div className="w-full overflow-x-auto">
-          {/* <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-30">
-                  Action
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {data?.items.map((subject) => (
-                <TableRow key={subject.id}>
-                  <TableCell>{subject.name}</TableCell>
-
-                  <TableCell>
-                    {subject.description || "-"}
-                  </TableCell>
-
-                  <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() =>
-                        deleteMutation.mutate(subject.id)
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table> */}
-          <Input
-            placeholder="Search subjects..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-          <DataTable columns={columns} data={data?.items ?? []} />
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => page > 1 && setPage(page - 1)}
-                />
-              </PaginationItem>
-
-              {Array.from(
-                { length: data?.totalPages ?? 0 },
-                (_, i) => (
-                  <PaginationItem key={i}>
-                    <PaginationLink
-                      isActive={page === i + 1}
-                      onClick={() => setPage(i + 1)}
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                )
-              )}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() =>
-                    page < (data?.totalPages ?? 1) &&
-                    setPage(page + 1)
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading subjects...</p>
         </div>
+      ) : isEmpty ? (
+        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
+          <p className="text-sm font-medium text-foreground">
+            {search ? "No subjects found" : "No subjects yet"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {search
+              ? "Try adjusting your search to find what you're looking for."
+              : "Create your first subject to get started."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+            <DataTable columns={columns} data={data?.items ?? []} />
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <p className="shrink-0 text-sm text-muted-foreground">
+              Page {data?.page ?? 1} of {data?.totalPages ?? 1}
+            </p>
+
+            <Pagination className="mx-0 w-auto shrink-0 justify-center sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => page > 1 && setPage(page - 1)}
+                  />
+                </PaginationItem>
+
+                {Array.from(
+                  { length: data?.totalPages ?? 0 },
+                  (_, i) => (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        isActive={page === i + 1}
+                        onClick={() => setPage(i + 1)}
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      page < (data?.totalPages ?? 1) &&
+                      setPage(page + 1)
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </>
       )}
     </div>
   );

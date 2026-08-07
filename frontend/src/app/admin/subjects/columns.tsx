@@ -1,5 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Subject } from "@/types/admin";
 import { SortType } from "@/types/sortType";
@@ -8,12 +8,14 @@ interface ColumnOptions {
   sort: string;
   setSort: (sort: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (subject: Subject) => void;
 }
 
 export function getColumns({
   sort,
   setSort,
   onDelete,
+  onEdit,
 }: ColumnOptions): ColumnDef<Subject>[] {
   const toggleSort = (field: string) => {
     if (sort === `${field}${SortType.Asc}`) {
@@ -82,6 +84,15 @@ export function getColumns({
       header: () => <div className="text-right">Action</div>,
       cell: ({ row }) => (
         <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="hover:bg-muted"
+            onClick={() => onEdit(row.original)}
+            aria-label={`Edit ${row.original.name}`}
+          >
+            <Pencil />
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"

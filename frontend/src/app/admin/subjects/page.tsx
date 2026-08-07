@@ -3,10 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { subjectsApi } from "@/features/subjects/subjectsApi";
+import type { Subject } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -30,14 +31,24 @@ export default function AdminSubjectsPage() {
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState("");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Subject | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["subjects", page, pageSize, search, sort],
-    queryFn: () => subjectsApi.list(page, pageSize, search, sort),
+    queryKey: ["subjects", page, pageSize, debouncedSearch, sort],
+    queryFn: () => subjectsApi.list(page, pageSize, debouncedSearch, sort),
   });
 
   const deleteMutation = useMutation({
@@ -46,16 +57,6 @@ export default function AdminSubjectsPage() {
     onError: () => setErrorMessage("Cannot delete a subject that has existing assignments."),
   });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        sort,
-        setSort,
-        onDelete: (id) => deleteMutation.mutate(id),
-      }),
-    [sort, deleteMutation]
-  );
-
   const {
     register,
     handleSubmit,
@@ -63,15 +64,34 @@ export default function AdminSubjectsPage() {
     formState: { errors, isSubmitting },
   } = useForm<SubjectFormValues>({ resolver: zodResolver(subjectSchema) });
 
+  const columns = useMemo(
+    () =>
+      getColumns({
+        sort,
+        setSort,
+        onDelete: (id) => deleteMutation.mutate(id),
+        onEdit: (subject) => {
+          setEditing(subject);
+          reset({ name: subject.name, description: subject.description ?? "" });
+          setOpen(true);
+        },
+      }),
+    [sort, deleteMutation, reset]
+  );
+
   const createMutation = useMutation({
-    mutationFn: (values: SubjectFormValues) => subjectsApi.create(values),
+    mutationFn: (values: SubjectFormValues) =>
+      editing
+        ? subjectsApi.update(editing.id, values)
+        : subjectsApi.create(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
       reset();
       setOpen(false);
+      setEditing(null);
       toast.add({
         type: "success",
-        title: "Subject created",
+        title: editing ? "Subject updated" : "Subject created",
       })
     },
   });
@@ -88,17 +108,31 @@ export default function AdminSubjectsPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Drawer swipeDirection="right" open={open} onOpenChange={setOpen}>
-          <DrawerTrigger render={<Button />}>
+        <Drawer swipeDirection="right" open={open} onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) {
+            reset();
+            setEditing(null);
+          }
+        }}>
+          <DrawerTrigger
+            render={<Button />}
+            onClick={() => {
+              reset();
+              setEditing(null);
+            }}
+          >
             <Plus />
             Create Subject
           </DrawerTrigger>
 
           <DrawerContent className="w-full sm:max-w-120">
             <DrawerHeader>
-              <DrawerTitle>Create Subject</DrawerTitle>
+              <DrawerTitle>{editing ? "Edit Subject" : "Create Subject"}</DrawerTitle>
               <DrawerDescription>
-                Create a new subject for assignments.
+                {editing
+                  ? "Update the subject details for assignments."
+                  : "Create a new subject for assignments."}
               </DrawerDescription>
             </DrawerHeader>
 
@@ -148,8 +182,12 @@ export default function AdminSubjectsPage() {
                     disabled={isSubmitting || createMutation.isPending}
                   >
                     {createMutation.isPending
-                      ? "Creating..."
-                      : "Create Subject"}
+                      ? editing
+                        ? "Saving..."
+                        : "Creating..."
+                      : editing
+                        ? "Save Changes"
+                        : "Create Subject"}
                   </Button>
                 </div>
               </DrawerFooter>
@@ -165,10 +203,7 @@ export default function AdminSubjectsPage() {
             <InputGroupInput
               placeholder="Search subjects..."
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </InputGroup>
         </div>

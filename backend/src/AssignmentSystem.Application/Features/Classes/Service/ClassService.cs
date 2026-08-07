@@ -87,18 +87,28 @@ public class ClassService(
             : Result.Success(classEntity.ToDto());
     }
 
-    public async Task<Result<PagedResult<ClassDto>>> GetListAsync(int page, int pageSize, CancellationToken cancellationToken)
+    public async Task<Result<PagedResult<ClassDto>>> GetListAsync(
+        int page,
+        int pageSize,
+        string? search,
+        string? sort,
+        CancellationToken cancellationToken)
     {
-        var query = classRepository.Query().AsNoTracking().OrderBy(c => c.Name);
+        var query = classRepository
+            .Query()
+            .AsNoTracking();
 
-        var paged = await query.ToPagedResultAsync(page, pageSize, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(c => EF.Functions.Like(c.Name, $"%{search.Trim()}%"));
+        }
 
-        var dtoPage = new PagedResult<ClassDto>(
-            paged.Items.Select(c => c.ToDto()).ToList(),
-            paged.Page,
-            paged.PageSize,
-            paged.TotalCount);
+        query = query.ApplyOrdering(sort, defaultColumn: "Name");
 
-        return Result.Success(dtoPage);
+        var pagedDtos = await query
+            .Select(c => c.ToDto())
+            .ToPagedResultAsync(page, pageSize, cancellationToken);
+
+        return Result.Success(pagedDtos);
     }
 }

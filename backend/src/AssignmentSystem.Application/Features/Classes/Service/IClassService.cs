@@ -13,5 +13,5 @@ public interface IClassService
 
     Task<Result<ClassDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<Result<PagedResult<ClassDto>>> GetListAsync(int page, int pageSize, CancellationToken cancellationToken);
+    Task<Result<PagedResult<ClassDto>>> GetListAsync(int page, int pageSize, string? search, string? sort, CancellationToken cancellationToken);
 }

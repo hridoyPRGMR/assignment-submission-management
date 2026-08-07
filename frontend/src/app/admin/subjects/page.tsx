@@ -108,6 +108,19 @@ export default function AdminSubjectsPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full sm:w-72">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search subjects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </InputGroup>
+        </div>
+
         <Drawer swipeDirection="right" open={open} onOpenChange={(value) => {
           setOpen(value);
           if (!value) {
@@ -194,19 +207,6 @@ export default function AdminSubjectsPage() {
             </form>
           </DrawerContent>
         </Drawer>
-
-        <div className="w-full sm:w-72">
-          <InputGroup>
-            <InputGroupAddon align="inline-start">
-              <Search />
-            </InputGroupAddon>
-            <InputGroupInput
-              placeholder="Search subjects..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </InputGroup>
-        </div>
       </div>
 
       {errorMessage && (

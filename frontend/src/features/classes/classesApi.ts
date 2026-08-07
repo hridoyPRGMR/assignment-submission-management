@@ -2,9 +2,9 @@ import { apiClient } from "@/lib/apiClient";
 import type { PagedResult, SchoolClass } from "@/types/admin";
 
 export const classesApi = {
-  async list(): Promise<PagedResult<SchoolClass>> {
+  async list(pageNumber: number, pageSize: number, search?: string, sort?: string): Promise<PagedResult<SchoolClass>> {
     const response = await apiClient.get<PagedResult<SchoolClass>>("/classes", {
-      params: { page: 1, pageSize: 100 },
+      params: { page: pageNumber, pageSize: pageSize, search: search, sort: sort },
     });
     return response.data;
   },

@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmissionStatusBadge } from "@/components/status-badge";
 import { toast } from "@/components/ui/toast";
+import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime, formatFileSize, formatRelativeDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +46,7 @@ export default function StudentAssignmentDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const assignmentQuery = useQuery({
     queryKey: ["assignments", assignmentId],
@@ -87,14 +89,15 @@ export default function StudentAssignmentDetailPage() {
     onSuccess: () => {
       invalidateSubmissions();
       clearFile();
+      setSubmitError(null);
       toast.add({ type: "success", title: "Submission saved" });
     },
-    onError: () =>
-      toast.add({
-        type: "error",
-        title: "Could not submit",
-        description: "The deadline for this assignment may have passed.",
-      }),
+    onError: (error) => {
+      const message =
+        getErrorMessage(error) ?? "Could not save your submission. Please try again.";
+      setSubmitError(message);
+      toast.add({ type: "error", title: "Could not submit", description: message });
+    },
   });
 
   const updateMutation = useMutation({
@@ -106,14 +109,15 @@ export default function StudentAssignmentDetailPage() {
     onSuccess: () => {
       invalidateSubmissions();
       clearFile();
+      setSubmitError(null);
       toast.add({ type: "success", title: "Submission updated" });
     },
-    onError: () =>
-      toast.add({
-        type: "error",
-        title: "Could not update submission",
-        description: "This assignment may no longer accept revisions.",
-      }),
+    onError: (error) => {
+      const message =
+        getErrorMessage(error) ?? "Could not update your submission. Please try again.";
+      setSubmitError(message);
+      toast.add({ type: "error", title: "Could not update submission", description: message });
+    },
   });
 
   if (assignmentQuery.isLoading || submissionQuery.isLoading) {
@@ -355,10 +359,10 @@ export default function StudentAssignmentDetailPage() {
                 )}
               </Field>
 
-              {mutation.isError && (
+              {submitError && (
                 <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   <CircleAlert className="size-4" />
-                  Could not save your submission. The deadline for this assignment may have passed.
+                  {submitError}
                 </div>
               )}
 

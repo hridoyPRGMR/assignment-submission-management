@@ -11,6 +11,10 @@ namespace AssignmentSystem.Application.Features.Users;
 
 public class UserService(
     IUserRepository userRepository,
+    ITeacherAssignmentRepository teacherAssignmentRepository,
+    IStudentEnrollmentRepository studentEnrollmentRepository,
+    IAssignmentRepository assignmentRepository,
+    ISubmissionRepository submissionRepository,
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IValidator<CreateUserInput> createValidator,
@@ -61,10 +65,42 @@ public class UserService(
             return Result.Failure<UserDto>("User not found.");
         }
 
-        user.UpdateProfile(input.FullName, DateTime.UtcNow, actorUserId);
+        var nowUtc = DateTime.UtcNow;
+        user.UpdateProfile(input.FullName, nowUtc, actorUserId);
+
+        if (input.Role.HasValue)
+        {
+            user.ChangeRole(input.Role.Value, nowUtc, actorUserId);
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success(user.ToDto());
+    }
+
+    public async Task<Result> DeleteAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        var user = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+
+        if (user is null)
+        {
+            return Result.Failure("User not found.");
+        }
+
+        var hasAssignments = await assignmentRepository.Query().AnyAsync(a => a.TeacherUserId == id, cancellationToken);
+        var hasTeacherAssignments = await teacherAssignmentRepository.Query().AnyAsync(ta => ta.TeacherUserId == id, cancellationToken);
+        var hasEnrollments = await studentEnrollmentRepository.Query().AnyAsync(e => e.StudentUserId == id, cancellationToken);
+        var hasSubmissions = await submissionRepository.Query().AnyAsync(s => s.StudentUserId == id, cancellationToken);
+
+        if (hasAssignments || hasTeacherAssignments || hasEnrollments || hasSubmissions)
+        {
+            return Result.Failure("Cannot delete a user who owns assignments or is linked to classes or submissions.");
+        }
+
+        userRepository.Remove(user);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 
     public async Task<Result> SetActiveStatusAsync(Guid id, bool isActive, Guid actorUserId, CancellationToken cancellationToken)

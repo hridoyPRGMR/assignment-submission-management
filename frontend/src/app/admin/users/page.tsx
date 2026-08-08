@@ -2,13 +2,24 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { Loader2, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { usersApi } from "@/features/users/usersApi";
+import type { AdminUser } from "@/types/admin";
 import type { UserRole } from "@/types/auth";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -51,6 +62,13 @@ const createUserSchema = z.object({
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
+const editUserSchema = z.object({
+  fullName: z.string().min(1, "Full name is required"),
+  role: z.enum(["Admin", "Teacher", "Student"]),
+});
+
+type EditUserFormValues = z.infer<typeof editUserSchema>;
+
 const roles: { label: string; value: UserRole }[] = [
   { label: "Admin", value: "Admin" },
   { label: "Teacher", value: "Teacher" },
@@ -62,9 +80,20 @@ const roleFilters: { label: string; value: string }[] = [
   ...roles,
 ];
 
+function getErrorMessage(error: unknown): string | undefined {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { title?: string } | undefined;
+    return data?.title;
+  }
+  return undefined;
+}
+
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -125,10 +154,66 @@ export default function AdminUsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
+  const {
+    control: editControl,
+    register: editRegister,
+    handleSubmit: editHandleSubmit,
+    reset: editReset,
+    formState: { errors: editErrors, isSubmitting: editIsSubmitting },
+  } = useForm<EditUserFormValues>({
+    resolver: zodResolver(editUserSchema),
+  });
+
+  useEffect(() => {
+    if (editingUser) {
+      editReset({ fullName: editingUser.fullName, role: editingUser.role });
+    }
+  }, [editingUser, editReset]);
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: EditUserFormValues }) =>
+      usersApi.update(id, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setEditOpen(false);
+      setEditingUser(null);
+      toast.add({ type: "success", title: "User updated" });
+    },
+    onError: (error) => {
+      toast.add({
+        type: "error",
+        title: "Could not update user",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => usersApi.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setDeleteTarget(null);
+      toast.add({ type: "success", title: "User deleted" });
+    },
+    onError: (error) => {
+      setDeleteTarget(null);
+      toast.add({
+        type: "error",
+        title: "Could not delete user",
+        description: getErrorMessage(error),
+      });
+    },
+  });
+
   const columns = useMemo(
     () =>
       getColumns({
         onToggleActive: (user) => statusMutation.mutate({ id: user.id, isActive: !user.isActive }),
+        onEdit: (user) => {
+          setEditingUser(user);
+          setEditOpen(true);
+        },
+        onDelete: (user) => setDeleteTarget(user),
         pendingId,
       }),
     [pendingId, statusMutation],
@@ -276,6 +361,110 @@ export default function AdminUsersPage() {
           </DrawerContent>
         </Drawer>
       </div>
+
+      <Drawer
+        swipeDirection="right"
+        open={editOpen}
+        onOpenChange={(value) => {
+          setEditOpen(value);
+          if (!value) setEditingUser(null);
+        }}
+      >
+        <DrawerContent className="w-full sm:max-w-120">
+          <DrawerHeader>
+            <DrawerTitle>Edit User</DrawerTitle>
+            <DrawerDescription>Update the user&apos;s profile and role.</DrawerDescription>
+          </DrawerHeader>
+
+          <form
+            onSubmit={editHandleSubmit((values) =>
+              editingUser
+                ? updateMutation.mutate({ id: editingUser.id, values })
+                : undefined,
+            )}
+            className="flex flex-1 flex-col gap-6 p-6"
+          >
+            <Field>
+              <Label>Full name</Label>
+
+              <Input placeholder="e.g. Jane Doe" {...editRegister("fullName")} />
+
+              {editErrors.fullName && (
+                <p className="text-sm text-destructive">{editErrors.fullName.message}</p>
+              )}
+            </Field>
+
+            <Field>
+              <Label>Role</Label>
+
+              <Controller
+                control={editControl}
+                name="role"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value ?? "Student")}
+                    items={roles}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a role..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+
+              {editErrors.role && <p className="text-sm text-destructive">{editErrors.role.message}</p>}
+            </Field>
+
+            <DrawerFooter className="mt-auto px-0 pb-0">
+              <div className="flex justify-end gap-2">
+                <DrawerClose render={<Button variant="outline" />}>Cancel</DrawerClose>
+
+                <Button type="submit" disabled={editIsSubmitting || updateMutation.isPending}>
+                  {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </DrawerFooter>
+          </form>
+        </DrawerContent>
+      </Drawer>
+
+      <Dialog
+        open={deleteTarget != null}
+        onOpenChange={(value) => {
+          if (!value && !deleteMutation.isPending) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete user</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">{deleteTarget?.fullName}</span>? This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="sm:justify-end">
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">

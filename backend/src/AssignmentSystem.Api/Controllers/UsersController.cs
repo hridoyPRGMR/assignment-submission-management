@@ -42,7 +42,14 @@ public class UsersController(IUserService userService) : ApiControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateUser(Guid id, UpdateUserRequest request, CancellationToken cancellationToken)
     {
-        var result = await userService.UpdateAsync(new UpdateUserInput(id, request.FullName), CurrentUserId, cancellationToken);
+        var result = await userService.UpdateAsync(new UpdateUserInput(id, request.FullName, request.Role), CurrentUserId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteUser(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await userService.DeleteAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 
@@ -61,4 +68,4 @@ public class UsersController(IUserService userService) : ApiControllerBase
     }
 }
 
-public record UpdateUserRequest(string FullName);
+public record UpdateUserRequest(string FullName, UserRole? Role);

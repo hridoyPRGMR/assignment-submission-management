@@ -79,4 +79,13 @@ public class User : AuditableEntity
         FullName = fullName.Trim();
         TouchUpdated(nowUtc, actorUserId);
     }
+
+    public void ChangeRole(UserRole role, DateTime nowUtc, Guid? actorUserId = null)
+    {
+        if (role != Role)
+        {
+            Role = role;
+            TouchUpdated(nowUtc, actorUserId);
+        }
+    }
 }

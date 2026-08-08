@@ -1,10 +1,13 @@
 import { ColumnDef } from "@tanstack/react-table";
+import { Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AdminUser } from "@/types/admin";
 
 interface ColumnOptions {
   onToggleActive: (user: AdminUser) => void;
+  onEdit: (user: AdminUser) => void;
+  onDelete: (user: AdminUser) => void;
   pendingId: string | null;
 }
 
@@ -14,7 +17,12 @@ const roleStyles: Record<AdminUser["role"], string> = {
   Student: "bg-emerald-500/10 text-emerald-600",
 };
 
-export function getColumns({ onToggleActive, pendingId }: ColumnOptions): ColumnDef<AdminUser>[] {
+export function getColumns({
+  onToggleActive,
+  onEdit,
+  onDelete,
+  pendingId,
+}: ColumnOptions): ColumnDef<AdminUser>[] {
   return [
     {
       accessorKey: "fullName",
@@ -68,7 +76,7 @@ export function getColumns({ onToggleActive, pendingId }: ColumnOptions): Column
       cell: ({ row }) => {
         const user = row.original;
         return (
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -79,6 +87,25 @@ export function getColumns({ onToggleActive, pendingId }: ColumnOptions): Column
               }
             >
               {user.isActive ? "Deactivate" : "Activate"}
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={() => onEdit(user)}
+              aria-label={`Edit ${user.fullName}`}
+            >
+              <Pencil />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="text-destructive"
+              onClick={() => onDelete(user)}
+              aria-label={`Delete ${user.fullName}`}
+            >
+              <Trash2 />
             </Button>
           </div>
         );

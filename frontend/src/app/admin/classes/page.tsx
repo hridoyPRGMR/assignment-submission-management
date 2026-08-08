@@ -104,7 +104,7 @@ export default function AdminClassesPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Classes</h1>
         <p className="text-sm text-muted-foreground">
-          Manage school classes and enrollments.
+          Manage school classes and enrollments. Click <span className="font-medium">Manage</span> on a class to add subjects, assign teachers, and enroll students.
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SchoolClass } from "@/types/admin";
 import { SortType } from "@/types/sortType";
@@ -91,7 +91,16 @@ export function getColumns({
       id: "actions",
       header: () => <div className="text-right">Action</div>,
       cell: ({ row }) => (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/admin/classes/${row.original.id}`} />}
+          >
+            <Users />
+            Manage
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"

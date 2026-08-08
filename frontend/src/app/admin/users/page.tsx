@@ -2,8 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Loader2, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { usersApi } from "@/features/users/usersApi";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -64,15 +65,30 @@ const roleFilters: { label: string; value: string }[] = [
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState("all");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const pageSize = 10;
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["users", page, pageSize, roleFilter],
+    queryKey: ["users", page, pageSize, roleFilter, debouncedSearch],
     queryFn: () =>
-      usersApi.listPaged(page, pageSize, roleFilter === "all" ? undefined : roleFilter),
+      usersApi.listPaged(
+        page,
+        pageSize,
+        roleFilter === "all" ? undefined : roleFilter,
+        debouncedSearch,
+      ),
   });
 
   const {
@@ -128,25 +144,40 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Select
-          value={roleFilter}
-          onValueChange={(value) => {
-            setRoleFilter(value ?? "all");
-            setPage(1);
-          }}
-          items={roleFilters}
-        >
-          <SelectTrigger className="w-full sm:w-52">
-            <SelectValue placeholder="Filter by role..." />
-          </SelectTrigger>
-          <SelectContent>
-            {roleFilters.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="w-full sm:w-72">
+            <InputGroup>
+              <InputGroupAddon align="inline-start">
+                <Search />
+              </InputGroupAddon>
+              <InputGroupInput
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </InputGroup>
+          </div>
+
+          <Select
+            value={roleFilter}
+            onValueChange={(value) => {
+              setRoleFilter(value ?? "all");
+              setPage(1);
+            }}
+            items={roleFilters}
+          >
+            <SelectTrigger className="w-full sm:w-52">
+              <SelectValue placeholder="Filter by role..." />
+            </SelectTrigger>
+            <SelectContent>
+              {roleFilters.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <Drawer
           swipeDirection="right"
@@ -254,12 +285,18 @@ export default function AdminUsersPage() {
       ) : isEmpty ? (
         <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
           <p className="text-sm font-medium text-foreground">
-            {roleFilter !== "all" ? "No users found" : "No users yet"}
+            {debouncedSearch
+              ? "No users found"
+              : roleFilter !== "all"
+                ? "No users found"
+                : "No users yet"}
           </p>
           <p className="text-sm text-muted-foreground">
-            {roleFilter !== "all"
-              ? "Try a different role filter."
-              : "Create your first user to get started."}
+            {debouncedSearch
+              ? "Try adjusting your search to find what you're looking for."
+              : roleFilter !== "all"
+                ? "Try a different role filter."
+                : "Create your first user to get started."}
           </p>
         </div>
       ) : (

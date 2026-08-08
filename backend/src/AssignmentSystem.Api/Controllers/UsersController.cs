@@ -18,9 +18,10 @@ public class UsersController(IUserService userService) : ApiControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] UserRole? role = null,
+        [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await userService.GetListAsync(page, pageSize, role, cancellationToken);
+        var result = await userService.GetListAsync(page, pageSize, role, search, cancellationToken);
         return HandleResult(result);
     }
 

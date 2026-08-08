@@ -99,13 +99,21 @@ public class UserService(
             : Result.Success(user.ToDto());
     }
 
-    public async Task<Result<PagedResult<UserDto>>> GetListAsync(int page, int pageSize, UserRole? role, CancellationToken cancellationToken)
+    public async Task<Result<PagedResult<UserDto>>> GetListAsync(int page, int pageSize, UserRole? role, string? search, CancellationToken cancellationToken)
     {
         var query = userRepository.Query().AsNoTracking().OrderBy(u => u.FullName).AsQueryable();
 
         if (role.HasValue)
         {
             query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(u =>
+                EF.Functions.Like(u.FullName, $"%{term}%") ||
+                EF.Functions.Like(u.Email, $"%{term}%"));
         }
 
         var paged = await query

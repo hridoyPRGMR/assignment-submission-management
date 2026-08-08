@@ -14,5 +14,5 @@ public interface IUserService
 
     Task<Result<UserDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<Result<PagedResult<UserDto>>> GetListAsync(int page, int pageSize, UserRole? role, CancellationToken cancellationToken);
+    Task<Result<PagedResult<UserDto>>> GetListAsync(int page, int pageSize, UserRole? role, string? search, CancellationToken cancellationToken);
 }

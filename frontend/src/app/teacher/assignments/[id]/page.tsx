@@ -2,11 +2,22 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { assignmentsApi } from "@/features/assignments/assignmentsApi";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { AssignmentStatusBadge } from "@/components/status-badge";
+import { toast } from "@/components/ui/toast";
+import { formatDateTime } from "@/lib/format";
 
 const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -66,100 +77,135 @@ export default function TeacherAssignmentDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments", assignmentId] });
       queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] });
+      toast.add({ type: "success", title: "Assignment updated" });
     },
+    onError: () =>
+      toast.add({
+        type: "error",
+        title: "Could not save changes",
+        description: "The deadline and max marks cannot be changed once submissions exist.",
+      }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => assignmentsApi.remove(assignmentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] });
+      toast.add({ type: "success", title: "Assignment deleted" });
       router.push("/teacher/assignments");
     },
+    onError: () => toast.add({ type: "error", title: "Could not delete assignment" }),
   });
 
   if (assignmentQuery.isLoading) {
-    return <p className="text-neutral-500">Loading...</p>;
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading assignment...</p>
+      </div>
+    );
   }
 
   const assignment = assignmentQuery.data;
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-2xl font-semibold">{assignment?.title}</h1>
-      <p className="text-sm text-neutral-500">
-        {assignment?.className} — {assignment?.subjectName} — {assignment?.status}
-      </p>
-
-      <form
-        onSubmit={handleSubmit((values) => updateMutation.mutate(values))}
-        className="grid max-w-2xl grid-cols-1 gap-4 rounded-md border border-neutral-200 p-4 sm:grid-cols-2"
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        className="-ml-2 w-fit"
+        render={<Link href="/teacher/assignments" />}
       >
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium">Title</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("title")}
-          />
-          {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+        <ArrowLeft />
+        Back to Assignments
+      </Button>
+
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">{assignment?.title}</h1>
+          {assignment && <AssignmentStatusBadge status={assignment.lifecycleStatus} />}
         </div>
+        <p className="text-sm text-muted-foreground">
+          {assignment?.className} · {assignment?.subjectName} · Due{" "}
+          {assignment && formatDateTime(assignment.deadlineUtc)}
+        </p>
+      </div>
 
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium">Description</label>
-          <textarea
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            rows={3}
-            {...register("description")}
-          />
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Deadline</label>
-          <input
-            type="datetime-local"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("deadline")}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium">Max marks</label>
-          <input
-            type="number"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("maxMarks")}
-          />
-          {errors.maxMarks && (
-            <p className="mt-1 text-sm text-red-600">{errors.maxMarks.message}</p>
-          )}
-        </div>
-
-        {updateMutation.isError && (
-          <p className="sm:col-span-2 text-sm text-red-600">
-            Could not save changes. The deadline and max marks cannot be changed once submissions
-            exist.
-          </p>
-        )}
-
-        <div className="sm:col-span-2 flex gap-3">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+      <Card>
+        <CardHeader>
+          <CardTitle>Edit assignment</CardTitle>
+          <CardDescription>
+            Update the assignment details. Once submissions exist, the deadline and max marks become
+            locked.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={handleSubmit((values) => updateMutation.mutate(values))}
+            className="grid grid-cols-1 gap-6 sm:grid-cols-2"
           >
-            {isSubmitting ? "Saving..." : "Save changes"}
-          </button>
-          <button
-            type="button"
-            onClick={() => deleteMutation.mutate()}
-            className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-600"
-          >
-            Delete assignment
-          </button>
-        </div>
-      </form>
+            <Field className="sm:col-span-2">
+              <Label>Title</Label>
+              <Input {...register("title")} />
+              {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+            </Field>
+
+            <Field className="sm:col-span-2">
+              <Label>Description</Label>
+              <Textarea rows={5} {...register("description")} />
+              {errors.description && (
+                <p className="text-sm text-destructive">{errors.description.message}</p>
+              )}
+            </Field>
+
+            <Field>
+              <Label>Deadline</Label>
+              <Input type="datetime-local" {...register("deadline")} />
+              {errors.deadline && (
+                <p className="text-sm text-destructive">{errors.deadline.message}</p>
+              )}
+            </Field>
+
+            <Field>
+              <Label>Max marks</Label>
+              <Input type="number" min={1} {...register("maxMarks")} />
+              {errors.maxMarks && (
+                <p className="text-sm text-destructive">{errors.maxMarks.message}</p>
+              )}
+            </Field>
+
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving..." : "Save changes"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (window.confirm("Delete this assignment? This cannot be undone.")) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 />
+                {deleteMutation.isPending ? "Deleting..." : "Delete assignment"}
+              </Button>
+
+              <Button
+                variant="outline"
+                nativeButton={false}
+                className="ml-auto"
+                render={<Link href={`/teacher/assignments/${assignmentId}/submissions`} />}
+              >
+                View submissions
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

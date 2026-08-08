@@ -15,15 +15,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
+
+type TabKey = "subjects" | "teachers" | "students";
+
+function EmptyState({ message, hint }: { message: string; hint: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-12 text-center">
+      <p className="text-sm font-medium text-foreground">{message}</p>
+      <p className="text-sm text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
 
 export default function AdminClassDetailPage() {
   const params = useParams<{ id: string }>();
   const classId = params.id;
   const queryClient = useQueryClient();
 
+  const [activeTab, setActiveTab] = useState<TabKey>("subjects");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [teacherSubjectId, setTeacherSubjectId] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
@@ -120,13 +147,30 @@ export default function AdminClassDetailPage() {
   const availableSubjects = (allSubjectsQuery.data?.items ?? []).filter(
     (subject) => !linkedSubjects.some((cs) => cs.subjectId === subject.id),
   );
+  const allTeachers = teachersQuery.data?.items ?? [];
+  const allStudents = studentsQuery.data?.items ?? [];
   const teacherAssignments = teacherAssignmentsQuery.data ?? [];
   const enrollments = enrollmentsQuery.data ?? [];
 
   const overview = [
-    { label: "Subjects", value: linkedSubjects.length, icon: BookOpen },
-    { label: "Teachers", value: teacherAssignments.length, icon: GraduationCap },
-    { label: "Students", value: enrollments.length, icon: Users },
+    {
+      label: "Subjects",
+      value: linkedSubjects.length,
+      icon: BookOpen,
+      tab: "subjects" as const,
+    },
+    {
+      label: "Teachers",
+      value: teacherAssignments.length,
+      icon: GraduationCap,
+      tab: "teachers" as const,
+    },
+    {
+      label: "Students",
+      value: enrollments.length,
+      icon: Users,
+      tab: "students" as const,
+    },
   ];
 
   if (classQuery.isLoading) {
@@ -144,6 +188,7 @@ export default function AdminClassDetailPage() {
         <Button
           variant="ghost"
           size="sm"
+          nativeButton={false}
           className="-ml-2 w-fit"
           render={<Link href="/admin/classes" />}
         >
@@ -163,313 +208,327 @@ export default function AdminClassDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {overview.map(({ label, value, icon: Icon }) => (
-          <Card key={label}>
-            <CardContent className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="text-2xl font-semibold tracking-tight">{value}</p>
-              </div>
-              <Icon className="size-5 text-muted-foreground" />
-            </CardContent>
-          </Card>
+        {overview.map(({ label, value, icon: Icon, tab }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            aria-pressed={activeTab === tab}
+            className={cn(
+              "flex items-center justify-between rounded-xl bg-card p-4 text-left ring-1 ring-foreground/10 transition-colors hover:bg-accent",
+              activeTab === tab && "ring-2 ring-primary",
+            )}
+          >
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-muted-foreground">{label}</p>
+              <p className="text-2xl font-semibold tracking-tight">{value}</p>
+            </div>
+            <Icon className="size-5 text-muted-foreground" />
+          </button>
         ))}
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Subjects</CardTitle>
-          <CardDescription>Subjects taught in this class.</CardDescription>
+          <CardTitle>Class setup</CardTitle>
+          <CardDescription>
+            Manage which subjects are taught, who teaches them, and which students are enrolled.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field className="flex-1">
-              <Label>Subject</Label>
-              <Select
-                value={selectedSubjectId}
-                onValueChange={(value) => setSelectedSubjectId(value ?? "")}
-                items={availableSubjects.map((subject) => ({
-                  label: subject.name,
-                  value: subject.id,
-                }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a subject..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSubjects.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No subjects available
-                    </SelectItem>
-                  ) : (
-                    availableSubjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!selectedSubjectId || assignSubjectMutation.isPending}
-              onClick={() => assignSubjectMutation.mutate()}
-            >
-              <Plus />
-              {assignSubjectMutation.isPending ? "Adding..." : "Add Subject"}
-            </Button>
-          </div>
+        <CardContent>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab((value as TabKey) ?? "subjects")}
+          >
+            <TabsList>
+              <TabsTrigger value="subjects">Subjects ({linkedSubjects.length})</TabsTrigger>
+              <TabsTrigger value="teachers">Teachers ({teacherAssignments.length})</TabsTrigger>
+              <TabsTrigger value="students">Students ({enrollments.length})</TabsTrigger>
+            </TabsList>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+            <TabsContent value="subjects" className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field className="flex-1">
+                  <Label>Add subject</Label>
+                  <Select
+                    value={selectedSubjectId}
+                    onValueChange={(value) => setSelectedSubjectId(value ?? "")}
+                    items={availableSubjects.map((subject) => ({
+                      label: subject.name,
+                      value: subject.id,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a subject..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSubjects.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No subjects available
+                        </SelectItem>
+                      ) : (
+                        availableSubjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={!selectedSubjectId || assignSubjectMutation.isPending}
+                  onClick={() => assignSubjectMutation.mutate()}
+                >
+                  <Plus />
+                  {assignSubjectMutation.isPending ? "Adding..." : "Add Subject"}
+                </Button>
+              </div>
+
               {classSubjectsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
-                    Loading subjects...
-                  </TableCell>
-                </TableRow>
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading subjects...
+                </div>
               ) : linkedSubjects.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
-                    No subjects assigned yet.
-                  </TableCell>
-                </TableRow>
+                <EmptyState
+                  message="No subjects assigned yet"
+                  hint="Add subjects to define what is taught in this class."
+                />
               ) : (
-                linkedSubjects.map((cs) => (
-                  <TableRow key={cs.id}>
-                    <TableCell className="font-medium">{cs.subjectName}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="hover:bg-destructive/10 hover:text-destructive"
-                        disabled={removeSubjectMutation.isPending}
-                        onClick={() => removeSubjectMutation.mutate(cs.id)}
-                        aria-label={`Remove ${cs.subjectName}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                <div className="overflow-hidden rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {linkedSubjects.map((cs) => (
+                        <TableRow key={cs.id}>
+                          <TableCell className="font-medium">{cs.subjectName}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="hover:bg-destructive/10 hover:text-destructive"
+                              disabled={removeSubjectMutation.isPending}
+                              onClick={() => removeSubjectMutation.mutate(cs.id)}
+                              aria-label={`Remove ${cs.subjectName}`}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Teachers</CardTitle>
-          <CardDescription>Assign teachers to subjects in this class.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <Field>
-              <Label>Subject</Label>
-              <Select
-                value={teacherSubjectId}
-                onValueChange={(value) => setTeacherSubjectId(value ?? "")}
-                items={linkedSubjects.map((cs) => ({
-                  label: cs.subjectName,
-                  value: cs.subjectId,
-                }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a subject..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {linkedSubjects.length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No linked subjects
-                    </SelectItem>
-                  ) : (
-                    linkedSubjects.map((cs) => (
-                      <SelectItem key={cs.subjectId} value={cs.subjectId}>
-                        {cs.subjectName}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <Label>Teacher</Label>
-              <Select
-                value={selectedTeacherId}
-                onValueChange={(value) => setSelectedTeacherId(value ?? "")}
-                items={(teachersQuery.data?.items ?? []).map((teacher) => ({
-                  label: teacher.fullName,
-                  value: teacher.id,
-                }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a teacher..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(teachersQuery.data?.items ?? []).length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No teachers available
-                    </SelectItem>
-                  ) : (
-                    (teachersQuery.data?.items ?? []).map((teacher) => (
-                      <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.fullName}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!teacherSubjectId || !selectedTeacherId || assignTeacherMutation.isPending}
-              onClick={() => assignTeacherMutation.mutate()}
-            >
-              <Plus />
-              {assignTeacherMutation.isPending ? "Assigning..." : "Assign Teacher"}
-            </Button>
-          </div>
+            <TabsContent value="teachers" className="mt-4 flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <Field>
+                  <Label>Subject</Label>
+                  <Select
+                    value={teacherSubjectId}
+                    onValueChange={(value) => setTeacherSubjectId(value ?? "")}
+                    items={linkedSubjects.map((cs) => ({
+                      label: cs.subjectName,
+                      value: cs.subjectId,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a subject..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {linkedSubjects.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No linked subjects
+                        </SelectItem>
+                      ) : (
+                        linkedSubjects.map((cs) => (
+                          <SelectItem key={cs.subjectId} value={cs.subjectId}>
+                            {cs.subjectName}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>Teacher</Label>
+                  <Select
+                    value={selectedTeacherId}
+                    onValueChange={(value) => setSelectedTeacherId(value ?? "")}
+                    items={allTeachers.map((teacher) => ({
+                      label: teacher.fullName,
+                      value: teacher.id,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a teacher..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allTeachers.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No teachers available
+                        </SelectItem>
+                      ) : (
+                        allTeachers.map((teacher) => (
+                          <SelectItem key={teacher.id} value={teacher.id}>
+                            {teacher.fullName}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={
+                    !teacherSubjectId || !selectedTeacherId || assignTeacherMutation.isPending
+                  }
+                  onClick={() => assignTeacherMutation.mutate()}
+                >
+                  <Plus />
+                  {assignTeacherMutation.isPending ? "Assigning..." : "Assign Teacher"}
+                </Button>
+              </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Teacher</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
               {teacherAssignmentsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
-                    Loading teachers...
-                  </TableCell>
-                </TableRow>
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading teachers...
+                </div>
               ) : teacherAssignments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-16 text-center text-muted-foreground">
-                    No teachers assigned yet.
-                  </TableCell>
-                </TableRow>
+                <EmptyState
+                  message="No teachers assigned yet"
+                  hint="Assign teachers to subjects so they can manage assignments."
+                />
               ) : (
-                teacherAssignments.map((ta) => (
-                  <TableRow key={ta.id}>
-                    <TableCell className="font-medium">{ta.teacherFullName}</TableCell>
-                    <TableCell className="text-muted-foreground">{ta.subjectName}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="hover:bg-destructive/10 hover:text-destructive"
-                        disabled={removeTeacherMutation.isPending}
-                        onClick={() => removeTeacherMutation.mutate(ta.id)}
-                        aria-label={`Remove ${ta.teacherFullName}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                <div className="overflow-hidden rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Teacher</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {teacherAssignments.map((ta) => (
+                        <TableRow key={ta.id}>
+                          <TableCell className="font-medium">{ta.teacherFullName}</TableCell>
+                          <TableCell className="text-muted-foreground">{ta.subjectName}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="hover:bg-destructive/10 hover:text-destructive"
+                              disabled={removeTeacherMutation.isPending}
+                              onClick={() => removeTeacherMutation.mutate(ta.id)}
+                              aria-label={`Remove ${ta.teacherFullName}`}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Students</CardTitle>
-          <CardDescription>Students enrolled in this class.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field className="flex-1">
-              <Label>Student</Label>
-              <Select
-                value={selectedStudentId}
-                onValueChange={(value) => setSelectedStudentId(value ?? "")}
-                items={(studentsQuery.data?.items ?? []).map((student) => ({
-                  label: student.fullName,
-                  value: student.id,
-                }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a student..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {(studentsQuery.data?.items ?? []).length === 0 ? (
-                    <SelectItem value="__none" disabled>
-                      No students available
-                    </SelectItem>
-                  ) : (
-                    (studentsQuery.data?.items ?? []).map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.fullName}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!selectedStudentId || enrollStudentMutation.isPending}
-              onClick={() => enrollStudentMutation.mutate()}
-            >
-              <Plus />
-              {enrollStudentMutation.isPending ? "Enrolling..." : "Enroll Student"}
-            </Button>
-          </div>
+            <TabsContent value="students" className="mt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <Field className="flex-1">
+                  <Label>Enroll student</Label>
+                  <Select
+                    value={selectedStudentId}
+                    onValueChange={(value) => setSelectedStudentId(value ?? "")}
+                    items={allStudents.map((student) => ({
+                      label: student.fullName,
+                      value: student.id,
+                    }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a student..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allStudents.length === 0 ? (
+                        <SelectItem value="__none" disabled>
+                          No students available
+                        </SelectItem>
+                      ) : (
+                        allStudents.map((student) => (
+                          <SelectItem key={student.id} value={student.id}>
+                            {student.fullName}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={!selectedStudentId || enrollStudentMutation.isPending}
+                  onClick={() => enrollStudentMutation.mutate()}
+                >
+                  <Plus />
+                  {enrollStudentMutation.isPending ? "Enrolling..." : "Enroll Student"}
+                </Button>
+              </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
               {enrollmentsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
-                    Loading students...
-                  </TableCell>
-                </TableRow>
+                <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading students...
+                </div>
               ) : enrollments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-16 text-center text-muted-foreground">
-                    No students enrolled yet.
-                  </TableCell>
-                </TableRow>
+                <EmptyState
+                  message="No students enrolled yet"
+                  hint="Enroll students so they can access assignments for this class."
+                />
               ) : (
-                enrollments.map((enrollment) => (
-                  <TableRow key={enrollment.id}>
-                    <TableCell className="font-medium">{enrollment.studentFullName}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="hover:bg-destructive/10 hover:text-destructive"
-                        disabled={removeEnrollmentMutation.isPending}
-                        onClick={() => removeEnrollmentMutation.mutate(enrollment.id)}
-                        aria-label={`Remove ${enrollment.studentFullName}`}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                <div className="overflow-hidden rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {enrollments.map((enrollment) => (
+                        <TableRow key={enrollment.id}>
+                          <TableCell className="font-medium">
+                            {enrollment.studentFullName}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="hover:bg-destructive/10 hover:text-destructive"
+                              disabled={removeEnrollmentMutation.isPending}
+                              onClick={() => removeEnrollmentMutation.mutate(enrollment.id)}
+                              aria-label={`Remove ${enrollment.studentFullName}`}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

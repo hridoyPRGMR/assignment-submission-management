@@ -2,9 +2,44 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { Loader2, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { usersApi } from "@/features/users/usersApi";
+import type { UserRole } from "@/types/auth";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { toast } from "@/components/ui/toast";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { DataTable } from "./data-table";
+import { getColumns } from "./columns";
 
 const createUserSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
@@ -15,15 +50,33 @@ const createUserSchema = z.object({
 
 type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
+const roles: { label: string; value: UserRole }[] = [
+  { label: "Admin", value: "Admin" },
+  { label: "Teacher", value: "Teacher" },
+  { label: "Student", value: "Student" },
+];
+
+const roleFilters: { label: string; value: string }[] = [
+  { label: "All roles", value: "all" },
+  ...roles,
+];
+
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const pageSize = 10;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => usersApi.list(),
+    queryKey: ["users", page, pageSize, roleFilter],
+    queryFn: () =>
+      usersApi.listPaged(page, pageSize, roleFilter === "all" ? undefined : roleFilter),
   });
 
   const {
+    control,
     register,
     handleSubmit,
     reset,
@@ -38,120 +91,211 @@ export default function AdminUsersPage() {
     mutationFn: (values: CreateUserFormValues) => usersApi.create(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      reset({ email: "", password: "", fullName: "", role: "Student" });
+      reset();
+      setOpen(false);
+      toast.add({ type: "success", title: "User created" });
     },
     onError: () => {
-      setError("email", { message: "Could not create user. The email may already be in use." });
+      setError("email", { message: "The email may already be in use." });
+      toast.add({ type: "error", title: "Could not create user" });
     },
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       usersApi.setActiveStatus(id, isActive),
+    onMutate: ({ id }) => setPendingId(id),
+    onSettled: () => setPendingId(null),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
+  const columns = useMemo(
+    () =>
+      getColumns({
+        onToggleActive: (user) => statusMutation.mutate({ id: user.id, isActive: !user.isActive }),
+        pendingId,
+      }),
+    [pendingId, statusMutation],
+  );
+
+  const isEmpty = data != null && data.items.length === 0;
+
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <h1 className="text-2xl font-semibold">Users</h1>
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+        <p className="text-sm text-muted-foreground">Manage user accounts and access.</p>
+      </div>
 
-      <form
-        onSubmit={handleSubmit((values) => createMutation.mutate(values))}
-        className="grid max-w-3xl grid-cols-1 gap-4 rounded-md border border-neutral-200 p-4 sm:grid-cols-2"
-      >
-        <div>
-          <label className="block text-sm font-medium">Full name</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("fullName")}
-          />
-          {errors.fullName && (
-            <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>
-          )}
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Select
+          value={roleFilter}
+          onValueChange={(value) => {
+            setRoleFilter(value ?? "all");
+            setPage(1);
+          }}
+          items={roleFilters}
+        >
+          <SelectTrigger className="w-full sm:w-52">
+            <SelectValue placeholder="Filter by role..." />
+          </SelectTrigger>
+          <SelectContent>
+            {roleFilters.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <div>
-          <label className="block text-sm font-medium">Email</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("email")}
-          />
-          {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
-        </div>
+        <Drawer
+          swipeDirection="right"
+          open={open}
+          onOpenChange={(value) => {
+            setOpen(value);
+            if (!value) reset();
+          }}
+        >
+          <DrawerTrigger render={<Button />} onClick={() => reset()}>
+            <Plus />
+            Create User
+          </DrawerTrigger>
 
-        <div>
-          <label className="block text-sm font-medium">Password</label>
-          <input
-            type="password"
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("password")}
-          />
-          {errors.password && (
-            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-          )}
-        </div>
+          <DrawerContent className="w-full sm:max-w-120">
+            <DrawerHeader>
+              <DrawerTitle>Create User</DrawerTitle>
+              <DrawerDescription>Create a new user account.</DrawerDescription>
+            </DrawerHeader>
 
-        <div>
-          <label className="block text-sm font-medium">Role</label>
-          <select
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("role")}
-          >
-            <option value="Admin">Admin</option>
-            <option value="Teacher">Teacher</option>
-            <option value="Student">Student</option>
-          </select>
-        </div>
+            <form
+              onSubmit={handleSubmit((values) => createMutation.mutate(values))}
+              className="flex flex-1 flex-col gap-6 p-6"
+            >
+              <Field>
+                <Label>Full name</Label>
 
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {isSubmitting ? "Creating..." : "Create user"}
-          </button>
-        </div>
-      </form>
+                <Input placeholder="e.g. Jane Doe" {...register("fullName")} />
+
+                {errors.fullName && (
+                  <p className="text-sm text-destructive">{errors.fullName.message}</p>
+                )}
+              </Field>
+
+              <Field>
+                <Label>Email</Label>
+
+                <Input type="email" placeholder="e.g. jane@example.com" {...register("email")} />
+
+                {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              </Field>
+
+              <Field>
+                <Label>Password</Label>
+
+                <Input
+                  type="password"
+                  placeholder="At least 8 characters"
+                  {...register("password")}
+                />
+
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </Field>
+
+              <Field>
+                <Label>Role</Label>
+
+                <Controller
+                  control={control}
+                  name="role"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value ?? "Student")}
+                      items={roles}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a role..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {roles.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+
+                {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
+              </Field>
+
+              <DrawerFooter className="mt-auto px-0 pb-0">
+                <div className="flex justify-end gap-2">
+                  <DrawerClose render={<Button variant="outline" />}>Cancel</DrawerClose>
+
+                  <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+                    {createMutation.isPending ? "Creating..." : "Create User"}
+                  </Button>
+                </div>
+              </DrawerFooter>
+            </form>
+          </DrawerContent>
+        </Drawer>
+      </div>
 
       {isLoading ? (
-        <p className="text-neutral-500">Loading users...</p>
-      ) : data?.items.length === 0 ? (
-        <p className="text-neutral-500">No users yet.</p>
-      ) : (
-        <div className="max-w-4xl overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left">
-                <th className="py-2">Name</th>
-                <th className="py-2">Email</th>
-                <th className="py-2">Role</th>
-                <th className="py-2">Status</th>
-                <th className="py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.items.map((user) => (
-                <tr key={user.id} className="border-b border-neutral-100">
-                  <td className="py-2">{user.fullName}</td>
-                  <td className="py-2">{user.email}</td>
-                  <td className="py-2">{user.role}</td>
-                  <td className="py-2">{user.isActive ? "Active" : "Inactive"}</td>
-                  <td className="py-2">
-                    <button
-                      onClick={() =>
-                        statusMutation.mutate({ id: user.id, isActive: !user.isActive })
-                      }
-                      className="text-sm font-medium text-neutral-700 underline"
-                    >
-                      {user.isActive ? "Deactivate" : "Activate"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading users...</p>
         </div>
+      ) : isEmpty ? (
+        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
+          <p className="text-sm font-medium text-foreground">
+            {roleFilter !== "all" ? "No users found" : "No users yet"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {roleFilter !== "all"
+              ? "Try a different role filter."
+              : "Create your first user to get started."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+            <DataTable columns={columns} data={data?.items ?? []} />
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <p className="shrink-0 text-sm text-muted-foreground">
+              Page {data?.page ?? 1} of {data?.totalPages ?? 1}
+            </p>
+
+            <Pagination className="mx-0 w-auto shrink-0 justify-center sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious onClick={() => page > 1 && setPage(page - 1)} />
+                </PaginationItem>
+
+                {Array.from({ length: data?.totalPages ?? 0 }, (_, i) => (
+                  <PaginationItem key={i}>
+                    <PaginationLink isActive={page === i + 1} onClick={() => setPage(i + 1)}>
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => page < (data?.totalPages ?? 1) && setPage(page + 1)}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </>
       )}
     </div>
   );

@@ -9,6 +9,13 @@ export const usersApi = {
     return response.data;
   },
 
+  async listPaged(page: number, pageSize: number, role?: string): Promise<PagedResult<AdminUser>> {
+    const response = await apiClient.get<PagedResult<AdminUser>>("/users", {
+      params: { page, pageSize, role: role || undefined },
+    });
+    return response.data;
+  },
+
   async create(input: {
     email: string;
     password: string;

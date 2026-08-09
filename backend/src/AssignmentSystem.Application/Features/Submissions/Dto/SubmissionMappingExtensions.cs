@@ -14,7 +14,7 @@ public static class SubmissionMappingExtensions
         submission.StoredFileName,
         submission.FileContentType,
         submission.FileSizeBytes,
-        submission.StoredFileName is null ? null : $"/api/v1/submissions/{submission.Id}/file",
+        submission.StoredFileName is null ? null : $"/submissions/{submission.Id}/file",
         submission.SubmittedAtUtc,
         submission.IsLate,
         submission.Status.ToString(),

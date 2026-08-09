@@ -16,18 +16,19 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends { id: string | number }, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends { id: string | number }, TValue>({
   columns,
   data,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
     columns,
+    getRowId: (row) => String(row.id),
     getCoreRowModel: getCoreRowModel(),
   })
 

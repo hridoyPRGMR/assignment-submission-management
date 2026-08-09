@@ -43,13 +43,16 @@ export const submissionsApi = {
   },
 
   async downloadFile(fileDownloadUrl: string, fileName: string): Promise<void> {
-    const response = await apiClient.get(fileDownloadUrl, { responseType: "blob" });
-    const url = URL.createObjectURL(response.data as Blob);
+    const url = fileDownloadUrl.replace(/^\/api\/v1/, "");
+    const response = await apiClient.get(url, { responseType: "blob" });
+    const objectUrl = URL.createObjectURL(response.data as Blob);
     const link = document.createElement("a");
-    link.href = url;
+    link.href = objectUrl;
     link.download = fileName;
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   },
 
   async listForAssignment(assignmentId: string): Promise<Submission[]> {

@@ -290,7 +290,7 @@ public class AssignmentService(
             query = query.Where(a => a.Status == status.Value);
         }
 
-        query = query.OrderByDescending(a => a.CreatedAtUtc);
+        query = query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id);
 
         var paged = await query.ToPagedResultAsync(page, pageSize, cancellationToken);
 
@@ -317,7 +317,7 @@ public class AssignmentService(
             .Include(a => a.Subject)
             .Include(a => a.TeacherUser)
             .Where(a => classIds.Contains(a.ClassId) && a.Status == AssignmentStatus.Published)
-            .OrderByDescending(a => a.DeadlineUtc);
+            .OrderByDescending(a => a.DeadlineUtc).ThenByDescending(a => a.Id);
 
         var paged = await query.ToPagedResultAsync(page, pageSize, cancellationToken);
 

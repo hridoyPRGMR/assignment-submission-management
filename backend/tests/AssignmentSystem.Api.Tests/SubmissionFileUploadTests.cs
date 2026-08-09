@@ -52,7 +52,7 @@ public class SubmissionFileUploadTests : IClassFixture<CustomWebApplicationFacto
         submission!.FileName.Should().Be("answer.pdf");
         submission.FileDownloadUrl.Should().NotBeNull();
 
-        var downloadResponse = await studentClient.GetAsync(submission.FileDownloadUrl);
+        var downloadResponse = await studentClient.GetAsync($"/api/v1{submission.FileDownloadUrl}");
         downloadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var downloadedBytes = await downloadResponse.Content.ReadAsByteArrayAsync();
         Encoding.UTF8.GetString(downloadedBytes).Should().Contain("fake pdf content");
@@ -81,7 +81,7 @@ public class SubmissionFileUploadTests : IClassFixture<CustomWebApplicationFacto
         var otherStudentClient = await _factory.CreateClient()
             .AuthenticateAsync(CustomWebApplicationFactory.OtherStudentEmail, CustomWebApplicationFactory.OtherStudentPassword);
 
-        var downloadResponse = await otherStudentClient.GetAsync(submission!.FileDownloadUrl);
+        var downloadResponse = await otherStudentClient.GetAsync($"/api/v1{submission!.FileDownloadUrl}");
 
         downloadResponse.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

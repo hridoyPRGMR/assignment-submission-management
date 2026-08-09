@@ -2,9 +2,9 @@ import { apiClient } from "@/lib/apiClient";
 import type { PagedResult, Subject } from "@/types/admin";
 
 export const subjectsApi = {
-  async list(): Promise<PagedResult<Subject>> {
+  async list(pageNumber: number, pageSize: number, serach?: string, sort?: string): Promise<PagedResult<Subject>> {
     const response = await apiClient.get<PagedResult<Subject>>("/subjects", {
-      params: { page: 1, pageSize: 100 },
+      params: { page: pageNumber, pageSize: pageSize, sort: sort },
     });
     return response.data;
   },

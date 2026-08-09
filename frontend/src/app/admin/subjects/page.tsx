@@ -2,10 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Loader2, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { subjectsApi } from "@/features/subjects/subjectsApi";
+import type { Subject } from "@/types/admin";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
+import { toast } from "@/components/ui/toast";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { DataTable } from "./data-table";
+import { getColumns } from "./columns";
 
 const subjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -17,10 +30,31 @@ type SubjectFormValues = z.infer<typeof subjectSchema>;
 export default function AdminSubjectsPage() {
   const queryClient = useQueryClient();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sort, setSort] = useState("");
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Subject | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => subjectsApi.list(),
+    queryKey: ["subjects", page, pageSize, debouncedSearch, sort],
+    queryFn: () => subjectsApi.list(page, pageSize, debouncedSearch, sort),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => subjectsApi.remove(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
+    onError: () => setErrorMessage("Cannot delete a subject that has existing assignments."),
   });
 
   const {
@@ -30,90 +64,218 @@ export default function AdminSubjectsPage() {
     formState: { errors, isSubmitting },
   } = useForm<SubjectFormValues>({ resolver: zodResolver(subjectSchema) });
 
+  const columns = useMemo(
+    () =>
+      getColumns({
+        sort,
+        setSort,
+        onDelete: (id) => deleteMutation.mutate(id),
+        onEdit: (subject) => {
+          setEditing(subject);
+          reset({ name: subject.name, description: subject.description ?? "" });
+          setOpen(true);
+        },
+      }),
+    [sort, deleteMutation, reset]
+  );
+
   const createMutation = useMutation({
-    mutationFn: (values: SubjectFormValues) => subjectsApi.create(values),
+    mutationFn: (values: SubjectFormValues) =>
+      editing
+        ? subjectsApi.update(editing.id, values)
+        : subjectsApi.create(values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
-      reset({ name: "", description: "" });
+      reset();
+      setOpen(false);
+      setEditing(null);
+      toast.add({
+        type: "success",
+        title: editing ? "Subject updated" : "Subject created",
+      })
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => subjectsApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
-    onError: () => setErrorMessage("Cannot delete a subject that has existing assignments."),
-  });
+  const isEmpty = data != null && data.items.length === 0;
 
   return (
-    <div className="flex flex-1 flex-col gap-8">
-      <h1 className="text-2xl font-semibold">Subjects</h1>
+    <div className="flex flex-1 flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Subjects</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage system subjects and curriculum specifications.
+        </p>
+      </div>
 
-      <form
-        onSubmit={handleSubmit((values) => createMutation.mutate(values))}
-        className="grid max-w-2xl grid-cols-1 gap-4 rounded-md border border-neutral-200 p-4 sm:grid-cols-2"
-      >
-        <div>
-          <label className="block text-sm font-medium">Name</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("name")}
-          />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full sm:w-72">
+          <InputGroup>
+            <InputGroupAddon align="inline-start">
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search subjects..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </InputGroup>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium">Description</label>
-          <input
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            {...register("description")}
-          />
-        </div>
-
-        <div className="sm:col-span-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        <Drawer swipeDirection="right" open={open} onOpenChange={(value) => {
+          setOpen(value);
+          if (!value) {
+            reset();
+            setEditing(null);
+          }
+        }}>
+          <DrawerTrigger
+            render={<Button />}
+            onClick={() => {
+              reset();
+              setEditing(null);
+            }}
           >
-            {isSubmitting ? "Creating..." : "Create subject"}
-          </button>
-        </div>
-      </form>
+            <Plus />
+            Create Subject
+          </DrawerTrigger>
 
-      {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+          <DrawerContent className="w-full sm:max-w-120">
+            <DrawerHeader>
+              <DrawerTitle>{editing ? "Edit Subject" : "Create Subject"}</DrawerTitle>
+              <DrawerDescription>
+                {editing
+                  ? "Update the subject details for assignments."
+                  : "Create a new subject for assignments."}
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <form
+              onSubmit={handleSubmit((values) => createMutation.mutate(values))}
+              className="flex flex-1 flex-col gap-6 p-6"
+            >
+              <Field>
+                <Label>Name</Label>
+
+                <Input
+                  placeholder="e.g. Mathematics"
+                  {...register("name")}
+                />
+
+                {errors.name && (
+                  <p className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
+              </Field>
+
+              <Field>
+                <Label>Description</Label>
+
+                <Textarea
+                  rows={4}
+                  placeholder="Enter subject description..."
+                  {...register("description")}
+                />
+
+                {errors.description && (
+                  <p className="text-sm text-destructive">
+                    {errors.description.message}
+                  </p>
+                )}
+              </Field>
+
+              <DrawerFooter className="mt-auto px-0 pb-0">
+                <div className="flex justify-end gap-2">
+                  <DrawerClose render={<Button variant="outline" />}>
+                    Cancel
+                  </DrawerClose>
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || createMutation.isPending}
+                  >
+                    {createMutation.isPending
+                      ? editing
+                        ? "Saving..."
+                        : "Creating..."
+                      : editing
+                        ? "Save Changes"
+                        : "Create Subject"}
+                  </Button>
+                </div>
+              </DrawerFooter>
+            </form>
+          </DrawerContent>
+        </Drawer>
+      </div>
+
+      {errorMessage && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      )}
 
       {isLoading ? (
-        <p className="text-neutral-500">Loading subjects...</p>
-      ) : data?.items.length === 0 ? (
-        <p className="text-neutral-500">No subjects yet.</p>
-      ) : (
-        <div className="max-w-3xl overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left">
-                <th className="py-2">Name</th>
-                <th className="py-2">Description</th>
-                <th className="py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.items.map((subject) => (
-                <tr key={subject.id} className="border-b border-neutral-100">
-                  <td className="py-2">{subject.name}</td>
-                  <td className="py-2">{subject.description}</td>
-                  <td className="py-2">
-                    <button
-                      onClick={() => deleteMutation.mutate(subject.id)}
-                      className="text-sm font-medium text-red-600 underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading subjects...</p>
         </div>
+      ) : isEmpty ? (
+        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
+          <p className="text-sm font-medium text-foreground">
+            {search ? "No subjects found" : "No subjects yet"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {search
+              ? "Try adjusting your search to find what you're looking for."
+              : "Create your first subject to get started."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+            <DataTable columns={columns} data={data?.items ?? []} />
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <p className="shrink-0 text-sm text-muted-foreground">
+              Page {data?.page ?? 1} of {data?.totalPages ?? 1}
+            </p>
+
+            <Pagination className="mx-0 w-auto shrink-0 justify-center sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => page > 1 && setPage(page - 1)}
+                  />
+                </PaginationItem>
+
+                {Array.from(
+                  { length: data?.totalPages ?? 0 },
+                  (_, i) => (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        isActive={page === i + 1}
+                        onClick={() => setPage(i + 1)}
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      page < (data?.totalPages ?? 1) &&
+                      setPage(page + 1)
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        </>
       )}
     </div>
   );

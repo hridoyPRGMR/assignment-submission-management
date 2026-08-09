@@ -13,5 +13,5 @@ public interface ISubjectService
 
     Task<Result<SubjectDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<Result<PagedResult<SubjectDto>>> GetListAsync(int page, int pageSize, CancellationToken cancellationToken);
+    Task<Result<PagedResult<SubjectDto>>> GetListAsync(int page, int pageSize,string? search, string? sort, CancellationToken cancellationToken);
 }

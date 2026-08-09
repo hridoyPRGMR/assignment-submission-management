@@ -9,6 +9,18 @@ export const usersApi = {
     return response.data;
   },
 
+  async listPaged(
+    page: number,
+    pageSize: number,
+    role?: string,
+    search?: string,
+  ): Promise<PagedResult<AdminUser>> {
+    const response = await apiClient.get<PagedResult<AdminUser>>("/users", {
+      params: { page, pageSize, role: role || undefined, search: search || undefined },
+    });
+    return response.data;
+  },
+
   async create(input: {
     email: string;
     password: string;
@@ -17,6 +29,15 @@ export const usersApi = {
   }): Promise<AdminUser> {
     const response = await apiClient.post<AdminUser>("/users", input);
     return response.data;
+  },
+
+  async update(id: string, input: { fullName: string; role?: string }): Promise<AdminUser> {
+    const response = await apiClient.put<AdminUser>(`/users/${id}`, input);
+    return response.data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await apiClient.delete(`/users/${id}`);
   },
 
   async setActiveStatus(id: string, isActive: boolean): Promise<void> {

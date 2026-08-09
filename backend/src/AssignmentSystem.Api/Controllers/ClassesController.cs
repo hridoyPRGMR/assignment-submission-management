@@ -16,9 +16,11 @@ public class ClassesController(IClassService classService) : ApiControllerBase
     public async Task<IActionResult> GetClasses(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await classService.GetListAsync(page, pageSize, cancellationToken);
+        var result = await classService.GetListAsync(page, pageSize, search, sort, cancellationToken);
         return HandleResult(result);
     }
 

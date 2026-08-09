@@ -4,12 +4,7 @@ import type { AuthResponse } from "@/types/auth";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5298/api/v1";
 
-export const apiClient = axios.create({
-  baseURL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+export const apiClient = axios.create({ baseURL });
 
 const authlessClient = axios.create({ baseURL });
 

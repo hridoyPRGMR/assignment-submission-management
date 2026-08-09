@@ -4,6 +4,7 @@ using AssignmentSystem.Domain.Common;
 using AssignmentSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.Assignments;
 
@@ -14,7 +15,8 @@ public class AssignmentService(
     IStudentEnrollmentRepository studentEnrollmentRepository,
     IUnitOfWork unitOfWork,
     IValidator<CreateAssignmentInput> createValidator,
-    IValidator<UpdateAssignmentInput> updateValidator) : IAssignmentService
+    IValidator<UpdateAssignmentInput> updateValidator,
+    ILogger<AssignmentService> logger) : IAssignmentService
 {
     public async Task<Result<AssignmentDto>> CreateAsync(CreateAssignmentInput input, CancellationToken cancellationToken)
     {
@@ -30,7 +32,7 @@ public class AssignmentService(
 
         if (!isAssignedToTeach)
         {
-            return Result.Failure<AssignmentDto>("You are not assigned to teach this subject in this class.");
+            return Result.Forbidden<AssignmentDto>("You are not assigned to teach this subject in this class.");
         }
 
         var assignmentResult = Domain.Entities.Assignment.Create(
@@ -57,6 +59,10 @@ public class AssignmentService(
             .Include(a => a.TeacherUser)
             .FirstAsync(a => a.Id == assignmentResult.Value.Id, cancellationToken);
 
+        logger.LogInformation(
+            "Teacher {TeacherUserId} created assignment {AssignmentId} for class {ClassId}/subject {SubjectId}",
+            input.TeacherUserId, created.Id, input.ClassId, input.SubjectId);
+
         return Result.Success(created.ToDto());
     }
 
@@ -76,12 +82,12 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure<AssignmentDto>("Assignment not found.");
+            return Result.NotFound<AssignmentDto>("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != input.RequestingUserId)
         {
-            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+            return Result.Forbidden<AssignmentDto>("You do not own this assignment.");
         }
 
         var hasSubmissions = await submissionRepository.Query().AnyAsync(s => s.AssignmentId == input.Id, cancellationToken);
@@ -105,16 +111,18 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure("Assignment not found.");
+            return Result.NotFound("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure("You do not own this assignment.");
+            return Result.Forbidden("You do not own this assignment.");
         }
 
         assignment.MarkDeleted(DateTime.UtcNow, requestingUserId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Teacher {TeacherUserId} deleted assignment {AssignmentId}", requestingUserId, id);
 
         return Result.Success();
     }
@@ -129,12 +137,12 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure<AssignmentDto>("Assignment not found.");
+            return Result.NotFound<AssignmentDto>("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+            return Result.Forbidden<AssignmentDto>("You do not own this assignment.");
         }
 
         var publishResult = assignment.Publish(DateTime.UtcNow, requestingUserId);
@@ -144,6 +152,8 @@ public class AssignmentService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Teacher {TeacherUserId} published assignment {AssignmentId}", requestingUserId, id);
 
         return Result.Success(assignment.ToDto());
     }
@@ -158,12 +168,12 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure<AssignmentDto>("Assignment not found.");
+            return Result.NotFound<AssignmentDto>("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+            return Result.Forbidden<AssignmentDto>("You do not own this assignment.");
         }
 
         var unpublishResult = assignment.Unpublish(DateTime.UtcNow, requestingUserId);
@@ -173,6 +183,8 @@ public class AssignmentService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Teacher {TeacherUserId} unpublished assignment {AssignmentId}", requestingUserId, id);
 
         return Result.Success(assignment.ToDto());
     }
@@ -187,12 +199,12 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure<AssignmentDto>("Assignment not found.");
+            return Result.NotFound<AssignmentDto>("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+            return Result.Forbidden<AssignmentDto>("You do not own this assignment.");
         }
 
         var result = assignment.MarkGraded(DateTime.UtcNow, requestingUserId);
@@ -202,6 +214,8 @@ public class AssignmentService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Teacher {TeacherUserId} marked assignment {AssignmentId} as graded", requestingUserId, id);
 
         return Result.Success(assignment.ToDto());
     }
@@ -216,12 +230,12 @@ public class AssignmentService(
 
         if (assignment is null)
         {
-            return Result.Failure<AssignmentDto>("Assignment not found.");
+            return Result.NotFound<AssignmentDto>("Assignment not found.");
         }
 
         if (assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure<AssignmentDto>("You do not own this assignment.");
+            return Result.Forbidden<AssignmentDto>("You do not own this assignment.");
         }
 
         var result = assignment.Archive(DateTime.UtcNow, requestingUserId);
@@ -231,6 +245,8 @@ public class AssignmentService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Teacher {TeacherUserId} archived assignment {AssignmentId}", requestingUserId, id);
 
         return Result.Success(assignment.ToDto());
     }
@@ -245,7 +261,7 @@ public class AssignmentService(
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         return assignment is null
-            ? Result.Failure<AssignmentDto>("Assignment not found.")
+            ? Result.NotFound<AssignmentDto>("Assignment not found.")
             : Result.Success(assignment.ToDto());
     }
 

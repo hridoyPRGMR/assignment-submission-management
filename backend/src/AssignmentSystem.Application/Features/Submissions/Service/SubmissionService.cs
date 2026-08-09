@@ -4,6 +4,7 @@ using AssignmentSystem.Domain.Common;
 using AssignmentSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.Submissions;
 
@@ -16,7 +17,8 @@ public class SubmissionService(
     IValidator<CreateSubmissionInput> createValidator,
     IValidator<GradeSubmissionInput> gradeValidator,
     IValidator<ReturnSubmissionForRevisionInput> returnForRevisionValidator,
-    IValidator<UpdateSubmissionInput> updateValidator) : ISubmissionService
+    IValidator<UpdateSubmissionInput> updateValidator,
+    ILogger<SubmissionService> logger) : ISubmissionService
 {
     public async Task<Result<SubmissionDto>> CreateAsync(CreateSubmissionInput input, CancellationToken cancellationToken)
     {
@@ -30,7 +32,7 @@ public class SubmissionService(
 
         if (assignment is null || assignment.Status != AssignmentStatus.Published)
         {
-            return Result.Failure<SubmissionDto>("Assignment not found.");
+            return Result.NotFound<SubmissionDto>("Assignment not found.");
         }
 
         var isEnrolled = await studentEnrollmentRepository.Query().AnyAsync(
@@ -38,7 +40,7 @@ public class SubmissionService(
 
         if (!isEnrolled)
         {
-            return Result.Failure<SubmissionDto>("You are not enrolled in the class this assignment belongs to.");
+            return Result.Forbidden<SubmissionDto>("You are not enrolled in the class this assignment belongs to.");
         }
 
         var alreadySubmitted = await submissionRepository.Query().AnyAsync(
@@ -67,6 +69,10 @@ public class SubmissionService(
             .Include(s => s.StudentUser)
             .FirstAsync(s => s.Id == submissionResult.Value.Id, cancellationToken);
 
+        logger.LogInformation(
+            "Student {StudentUserId} submitted assignment {AssignmentId} (submission {SubmissionId}, late: {IsLate})",
+            input.StudentUserId, input.AssignmentId, created.Id, created.IsLate);
+
         return Result.Success(created.ToDto());
     }
 
@@ -85,12 +91,12 @@ public class SubmissionService(
 
         if (submission is null)
         {
-            return Result.Failure<SubmissionDto>("Submission not found.");
+            return Result.NotFound<SubmissionDto>("Submission not found.");
         }
 
         if (submission.StudentUserId != input.RequestingStudentUserId)
         {
-            return Result.Failure<SubmissionDto>("You do not own this submission.");
+            return Result.Forbidden<SubmissionDto>("You do not own this submission.");
         }
 
         var updateResult = submission.Update(
@@ -108,6 +114,10 @@ public class SubmissionService(
         {
             fileStorageService.Delete(orphanedStoredFileName);
         }
+
+        logger.LogInformation(
+            "Student {StudentUserId} updated submission {SubmissionId} (late: {IsLate})",
+            input.RequestingStudentUserId, submission.Id, submission.IsLate);
 
         return Result.Success(submission.ToDto());
     }
@@ -127,12 +137,12 @@ public class SubmissionService(
 
         if (submission is null)
         {
-            return Result.Failure<SubmissionDto>("Submission not found.");
+            return Result.NotFound<SubmissionDto>("Submission not found.");
         }
 
         if (submission.Assignment.TeacherUserId != input.RequestingTeacherUserId)
         {
-            return Result.Failure<SubmissionDto>("You do not own this assignment.");
+            return Result.Forbidden<SubmissionDto>("You do not own this assignment.");
         }
 
         var result = submission.Grade(
@@ -144,6 +154,10 @@ public class SubmissionService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Teacher {TeacherUserId} graded submission {SubmissionId} with {Marks}/{MaxMarks}",
+            input.RequestingTeacherUserId, submission.Id, input.Marks, submission.Assignment.MaxMarks);
 
         return Result.Success(submission.ToDto());
     }
@@ -164,12 +178,12 @@ public class SubmissionService(
 
         if (submission is null)
         {
-            return Result.Failure<SubmissionDto>("Submission not found.");
+            return Result.NotFound<SubmissionDto>("Submission not found.");
         }
 
         if (submission.Assignment.TeacherUserId != input.RequestingTeacherUserId)
         {
-            return Result.Failure<SubmissionDto>("You do not own this assignment.");
+            return Result.Forbidden<SubmissionDto>("You do not own this assignment.");
         }
 
         var result = submission.Return(input.Feedback, DateTime.UtcNow, input.RequestingTeacherUserId);
@@ -179,6 +193,10 @@ public class SubmissionService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Teacher {TeacherUserId} returned submission {SubmissionId} for revision",
+            input.RequestingTeacherUserId, submission.Id);
 
         return Result.Success(submission.ToDto());
     }
@@ -193,12 +211,12 @@ public class SubmissionService(
 
         if (submission is null)
         {
-            return Result.Failure<SubmissionDto>("Submission not found.");
+            return Result.NotFound<SubmissionDto>("Submission not found.");
         }
 
         if (submission.Assignment.TeacherUserId != requestingTeacherUserId)
         {
-            return Result.Failure<SubmissionDto>("You do not own this assignment.");
+            return Result.Forbidden<SubmissionDto>("You do not own this assignment.");
         }
 
         var result = submission.StartReview(DateTime.UtcNow, requestingTeacherUserId);
@@ -208,6 +226,10 @@ public class SubmissionService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Teacher {TeacherUserId} started reviewing submission {SubmissionId}",
+            requestingTeacherUserId, submission.Id);
 
         return Result.Success(submission.ToDto());
     }
@@ -235,7 +257,7 @@ public class SubmissionService(
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         return submission is null
-            ? Result.Failure<SubmissionDto>("Submission not found.")
+            ? Result.NotFound<SubmissionDto>("Submission not found.")
             : Result.Success(submission.ToDto());
     }
 
@@ -260,12 +282,12 @@ public class SubmissionService(
 
         if (assignment is null)
         {
-            return Result.Failure<IReadOnlyList<SubmissionDto>>("Assignment not found.");
+            return Result.NotFound<IReadOnlyList<SubmissionDto>>("Assignment not found.");
         }
 
         if (!isAdmin && assignment.TeacherUserId != requestingUserId)
         {
-            return Result.Failure<IReadOnlyList<SubmissionDto>>("You do not own this assignment.");
+            return Result.Forbidden<IReadOnlyList<SubmissionDto>>("You do not own this assignment.");
         }
 
         var submissions = await submissionRepository.Query()

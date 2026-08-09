@@ -53,6 +53,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:SigningKey"] = "integration-test-signing-key-at-least-32-characters-long",
                 ["Jwt:AccessTokenMinutes"] = "30",
                 ["Jwt:RefreshTokenDays"] = "7",
+                ["RateLimiting:Login:PermitLimit"] = "1000",
+                ["RateLimiting:Login:WindowSeconds"] = "60",
             });
         });
 

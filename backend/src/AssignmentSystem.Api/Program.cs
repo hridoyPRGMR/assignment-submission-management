@@ -8,10 +8,12 @@ using AssignmentSystem.Infrastructure;
 using AssignmentSystem.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Serilog;
+using System.Threading.RateLimiting;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -97,6 +99,19 @@ try
         });
     });
 
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddFixedWindowLimiter("login", limiterOptions =>
+        {
+            limiterOptions.PermitLimit = builder.Configuration.GetValue("RateLimiting:Login:PermitLimit", 5);
+            limiterOptions.Window = TimeSpan.FromSeconds(
+                builder.Configuration.GetValue("RateLimiting:Login:WindowSeconds", 60));
+            limiterOptions.QueueLimit = 0;
+            limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        });
+    });
+
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("FrontendPolicy", policy =>
@@ -143,6 +158,8 @@ try
     app.UseHttpsRedirection();
 
     app.UseCors("FrontendPolicy");
+
+    app.UseRateLimiter();
 
     app.UseAuthentication();
     app.UseAuthorization();

@@ -8,6 +8,9 @@ namespace AssignmentSystem.Api.Controllers;
 
 public class AuthController(IAuthService authService) : ApiControllerBase
 {
+    private Guid CurrentUserId =>
+        Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub")!);
+
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
@@ -41,4 +44,15 @@ public class AuthController(IAuthService authService) : ApiControllerBase
         var result = await authService.LogoutAsync(input, cancellationToken);
         return HandleResult(result);
     }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var input = new ChangePasswordInput(CurrentUserId, request.CurrentPassword, request.NewPassword);
+        var result = await authService.ChangePasswordAsync(input, cancellationToken);
+        return HandleResult(result);
+    }
 }
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);

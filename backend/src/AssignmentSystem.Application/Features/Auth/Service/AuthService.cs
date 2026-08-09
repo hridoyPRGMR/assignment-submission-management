@@ -18,7 +18,8 @@ public class AuthService(
     IConfiguration configuration,
     IValidator<LoginInput> loginValidator,
     IValidator<LogoutInput> logoutValidator,
-    IValidator<RefreshTokenInput> refreshTokenValidator)
+    IValidator<RefreshTokenInput> refreshTokenValidator,
+    IValidator<ChangePasswordInput> changePasswordValidator)
     : IAuthService
 {
     public async Task<Result<AuthResponseDto>> LoginAsync(LoginInput input, CancellationToken cancellationToken)
@@ -130,5 +131,27 @@ public class AuthService(
             existingToken.User.Email,
             existingToken.User.FullName,
             existingToken.User.Role.ToString()));
+    }
+
+    public async Task<Result> ChangePasswordAsync(ChangePasswordInput input, CancellationToken cancellationToken)
+    {
+        var validation = await changePasswordValidator.ValidateAsync(input, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return Result.Failure(string.Join(" ", validation.Errors.Select(e => e.ErrorMessage)));
+        }
+
+        var user = await userRepository.Query()
+            .FirstOrDefaultAsync(u => u.Id == input.UserId, cancellationToken);
+
+        if (user is null || !passwordHasher.Verify(input.CurrentPassword, user.PasswordHash))
+        {
+            return Result.Failure("Current password is incorrect.");
+        }
+
+        user.ChangePasswordHash(passwordHasher.Hash(input.NewPassword), DateTime.UtcNow, user.Id);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 }

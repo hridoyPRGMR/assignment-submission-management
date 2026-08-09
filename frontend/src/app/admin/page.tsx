@@ -121,6 +121,14 @@ export default function AdminDashboardPage() {
             <BookOpen />
             Manage subjects
           </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/admin/assignments" />}
+          >
+            <ClipboardList />
+            View assignments
+          </Button>
         </div>
       </div>
     </div>

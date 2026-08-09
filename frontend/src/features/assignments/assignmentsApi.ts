@@ -1,11 +1,23 @@
 import { apiClient } from "@/lib/apiClient";
 import type { PagedResult } from "@/types/admin";
-import type { Assignment } from "@/types/assignment";
+import type { Assignment, AssignmentStatus } from "@/types/assignment";
 
 export const assignmentsApi = {
   async listMine(): Promise<PagedResult<Assignment>> {
     const response = await apiClient.get<PagedResult<Assignment>>("/assignments", {
       params: { page: 1, pageSize: 100 },
+    });
+    return response.data;
+  },
+
+  async listForAdmin(params: {
+    page: number;
+    pageSize: number;
+    classId?: string;
+    status?: AssignmentStatus;
+  }): Promise<PagedResult<Assignment>> {
+    const response = await apiClient.get<PagedResult<Assignment>>("/assignments/admin", {
+      params,
     });
     return response.data;
   },

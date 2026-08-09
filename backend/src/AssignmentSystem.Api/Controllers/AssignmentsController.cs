@@ -64,6 +64,11 @@ public class AssignmentsController(
             return HandleResult(result);
         }
 
+        if (User.IsInRole(UserRole.Admin.ToString()))
+        {
+            return Ok(result.Value);
+        }
+
         if (User.IsInRole(UserRole.Teacher.ToString()))
         {
             var authResult = await authorizationService.AuthorizeAsync(User, result.Value, AuthorizationPolicies.AssignmentOwner);

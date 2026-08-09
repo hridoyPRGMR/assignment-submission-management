@@ -29,7 +29,8 @@ public class LoginCommandHandlerTests
             CreateConfiguration(),
             new LoginInputValidator(),
             new LogoutInputValidator(),
-            new RefreshTokenInputValidator());
+            new RefreshTokenInputValidator(),
+            new ChangePasswordInputValidator());
 
     [Fact]
     public async Task Login_with_valid_credentials_should_succeed()

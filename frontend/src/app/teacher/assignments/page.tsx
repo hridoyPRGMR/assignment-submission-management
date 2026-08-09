@@ -52,7 +52,10 @@ const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   classSubject: z.string().min(1, "Select a class and subject"),
-  deadline: z.string().min(1, "Deadline is required"),
+  deadline: z
+    .string()
+    .min(1, "Deadline is required")
+    .refine((value) => new Date(value).getTime() > Date.now(), "Deadline must be in the future"),
   maxMarks: z.coerce.number().int().positive("Must be greater than zero"),
 });
 
@@ -125,7 +128,7 @@ export default function TeacherAssignmentsPage() {
     formState: { errors, isSubmitting },
   } = useForm<AssignmentFormValues, unknown, AssignmentFormOutput>({
     resolver: zodResolver(assignmentSchema),
-    defaultValues: { maxMarks: 100 },
+    defaultValues: { title: "", description: "", classSubject: "", deadline: "", maxMarks: 100 },
   });
 
   const createMutation = useMutation({

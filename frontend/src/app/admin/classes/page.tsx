@@ -65,7 +65,10 @@ export default function AdminClassesPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ClassFormValues>({ resolver: zodResolver(classSchema) });
+  } = useForm<ClassFormValues>({
+    resolver: zodResolver(classSchema),
+    defaultValues: { name: "", description: "" },
+  });
 
   const columns = useMemo(
     () =>

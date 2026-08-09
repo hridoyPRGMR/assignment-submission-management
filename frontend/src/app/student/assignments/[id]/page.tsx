@@ -63,7 +63,10 @@ export default function StudentAssignmentDetailPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<SubmissionFormValues>({ resolver: zodResolver(submissionSchema) });
+  } = useForm<SubmissionFormValues>({
+    resolver: zodResolver(submissionSchema),
+    defaultValues: { content: "" },
+  });
 
   useEffect(() => {
     if (submissionQuery.data) {

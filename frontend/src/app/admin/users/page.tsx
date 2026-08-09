@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
     setError,
   } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { role: "Student" },
+    defaultValues: { email: "", password: "", fullName: "", role: "Student" },
   });
 
   const createMutation = useMutation({

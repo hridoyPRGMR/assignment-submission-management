@@ -64,7 +64,10 @@ export default function AdminSubjectsPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<SubjectFormValues>({ resolver: zodResolver(subjectSchema) });
+  } = useForm<SubjectFormValues>({
+    resolver: zodResolver(subjectSchema),
+    defaultValues: { name: "", description: "" },
+  });
 
   const columns = useMemo(
     () =>

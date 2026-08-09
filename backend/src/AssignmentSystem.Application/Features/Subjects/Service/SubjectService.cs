@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentSystem.Application.Features.Subjects;
 
+// See the comment on ClassService for why this isn't factored into a shared generic base
+// with that near-identical service — the delete guards and domain factory shapes diverge
+// enough that a generic base wouldn't remove real work, just add a layer of indirection.
 public class SubjectService(
     ISubjectRepository subjectRepository,
     IAssignmentRepository assignmentRepository,
@@ -45,7 +48,7 @@ public class SubjectService(
 
         if (subject is null)
         {
-            return Result.Failure<SubjectDto>("Subject not found.");
+            return Result.NotFound<SubjectDto>("Subject not found.");
         }
 
         subject.Update(input.Name, input.Description, DateTime.UtcNow, actorUserId);
@@ -60,7 +63,7 @@ public class SubjectService(
 
         if (subject is null)
         {
-            return Result.Failure("Subject not found.");
+            return Result.NotFound("Subject not found.");
         }
 
         var hasAssignments = await assignmentRepository.Query().AnyAsync(a => a.SubjectId == id, cancellationToken);
@@ -81,7 +84,7 @@ public class SubjectService(
         var subject = await subjectRepository.Query().AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         return subject is null
-            ? Result.Failure<SubjectDto>("Subject not found.")
+            ? Result.NotFound<SubjectDto>("Subject not found.")
             : Result.Success(subject.ToDto());
     }
 

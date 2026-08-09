@@ -62,7 +62,7 @@ public class UserService(
 
         if (user is null)
         {
-            return Result.Failure<UserDto>("User not found.");
+            return Result.NotFound<UserDto>("User not found.");
         }
 
         var nowUtc = DateTime.UtcNow;
@@ -84,7 +84,7 @@ public class UserService(
 
         if (user is null)
         {
-            return Result.Failure("User not found.");
+            return Result.NotFound("User not found.");
         }
 
         var hasAssignments = await assignmentRepository.Query().AnyAsync(a => a.TeacherUserId == id, cancellationToken);
@@ -109,7 +109,7 @@ public class UserService(
 
         if (user is null)
         {
-            return Result.Failure("User not found.");
+            return Result.NotFound("User not found.");
         }
 
         if (isActive)
@@ -131,7 +131,7 @@ public class UserService(
         var user = await userRepository.Query().AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
         return user is null
-            ? Result.Failure<UserDto>("User not found.")
+            ? Result.NotFound<UserDto>("User not found.")
             : Result.Success(user.ToDto());
     }
 

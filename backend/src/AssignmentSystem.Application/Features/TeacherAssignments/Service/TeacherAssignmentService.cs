@@ -28,19 +28,19 @@ public class TeacherAssignmentService(
         var teacher = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == input.TeacherUserId, cancellationToken);
         if (teacher is null || teacher.Role != UserRole.Teacher || !teacher.IsActive)
         {
-            return Result.Failure<TeacherAssignmentDto>("Teacher not found or is not an active teacher account.");
+            return Result.NotFound<TeacherAssignmentDto>("Teacher not found or is not an active teacher account.");
         }
 
         var classEntity = await classRepository.Query().FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
         if (classEntity is null)
         {
-            return Result.Failure<TeacherAssignmentDto>("Class not found.");
+            return Result.NotFound<TeacherAssignmentDto>("Class not found.");
         }
 
         var subject = await subjectRepository.Query().FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
         if (subject is null)
         {
-            return Result.Failure<TeacherAssignmentDto>("Subject not found.");
+            return Result.NotFound<TeacherAssignmentDto>("Subject not found.");
         }
 
         var subjectTaughtInClass = await classSubjectRepository.Query()
@@ -112,7 +112,7 @@ public class TeacherAssignmentService(
 
         if (teacherAssignment is null)
         {
-            return Result.Failure("Teacher assignment not found.");
+            return Result.NotFound("Teacher assignment not found.");
         }
 
         teacherAssignmentRepository.Remove(teacherAssignment);

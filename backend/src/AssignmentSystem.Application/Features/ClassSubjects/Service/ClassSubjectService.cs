@@ -25,13 +25,13 @@ public class ClassSubjectService(
         var classEntity = await classRepository.Query().FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
         if (classEntity is null)
         {
-            return Result.Failure<ClassSubjectDto>("Class not found.");
+            return Result.NotFound<ClassSubjectDto>("Class not found.");
         }
 
         var subject = await subjectRepository.Query().FirstOrDefaultAsync(s => s.Id == input.SubjectId, cancellationToken);
         if (subject is null)
         {
-            return Result.Failure<ClassSubjectDto>("Subject not found.");
+            return Result.NotFound<ClassSubjectDto>("Subject not found.");
         }
 
         var alreadyLinked = await classSubjectRepository.Query()
@@ -80,7 +80,7 @@ public class ClassSubjectService(
 
         if (classSubject is null)
         {
-            return Result.Failure("Class-subject association not found.");
+            return Result.NotFound("Class-subject association not found.");
         }
 
         var hasTeacherAssignments = await teacherAssignmentRepository.Query().AnyAsync(

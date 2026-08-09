@@ -27,13 +27,13 @@ public class StudentEnrollmentService(
         var student = await userRepository.Query().FirstOrDefaultAsync(u => u.Id == input.StudentUserId, cancellationToken);
         if (student is null || student.Role != UserRole.Student || !student.IsActive)
         {
-            return Result.Failure<StudentEnrollmentDto>("Student not found or is not an active student account.");
+            return Result.NotFound<StudentEnrollmentDto>("Student not found or is not an active student account.");
         }
 
         var classEntity = await classRepository.Query().FirstOrDefaultAsync(c => c.Id == input.ClassId, cancellationToken);
         if (classEntity is null)
         {
-            return Result.Failure<StudentEnrollmentDto>("Class not found.");
+            return Result.NotFound<StudentEnrollmentDto>("Class not found.");
         }
 
         var alreadyEnrolled = await studentEnrollmentRepository.Query().AnyAsync(
@@ -57,7 +57,7 @@ public class StudentEnrollmentService(
 
         if (enrollment is null)
         {
-            return Result.Failure("Enrollment not found.");
+            return Result.NotFound("Enrollment not found.");
         }
 
         var hasSubmissions = await submissionRepository.Query().AnyAsync(

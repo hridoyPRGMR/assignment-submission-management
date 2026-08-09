@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AssignmentSystem.Application.Features.Classes;
 
+// Intentionally not factored into a shared generic CRUD base with SubjectService: the two
+// entities' delete guards diverge (Class checks both assignments and enrollments; Subject
+// checks only assignments), and their domain factories take different constructor shapes.
+// A generic base would need virtual "can this be deleted" hooks per entity anyway, which
+// wouldn't meaningfully reduce the code below it still has to write. Kept as plain, readable
+// duplication rather than an abstraction that doesn't pay for itself at just two entities.
 public class ClassService(
     IClassRepository classRepository,
     IAssignmentRepository assignmentRepository,
@@ -46,7 +52,7 @@ public class ClassService(
 
         if (classEntity is null)
         {
-            return Result.Failure<ClassDto>("Class not found.");
+            return Result.NotFound<ClassDto>("Class not found.");
         }
 
         classEntity.Update(input.Name, input.Description, DateTime.UtcNow, actorUserId);
@@ -61,7 +67,7 @@ public class ClassService(
 
         if (classEntity is null)
         {
-            return Result.Failure("Class not found.");
+            return Result.NotFound("Class not found.");
         }
 
         var hasAssignments = await assignmentRepository.Query().AnyAsync(a => a.ClassId == id, cancellationToken);
@@ -83,7 +89,7 @@ public class ClassService(
         var classEntity = await classRepository.Query().AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
         return classEntity is null
-            ? Result.Failure<ClassDto>("Class not found.")
+            ? Result.NotFound<ClassDto>("Class not found.")
             : Result.Success(classEntity.ToDto());
     }
 

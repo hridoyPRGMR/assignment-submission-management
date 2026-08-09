@@ -5,6 +5,7 @@ using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.Submissions;
@@ -23,7 +24,8 @@ public class SubmissionServiceAuthorizationTests
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),
             new ReturnSubmissionForRevisionInputValidator(),
-            new UpdateSubmissionInputValidator());
+            new UpdateSubmissionInputValidator(),
+            NullLogger<SubmissionService>.Instance);
 
     private static (Submission Submission, Assignment Assignment, User OwningTeacher, User OtherTeacher, User Student, User OtherStudent)
         SeedSubmission(AppDbContext dbContext)

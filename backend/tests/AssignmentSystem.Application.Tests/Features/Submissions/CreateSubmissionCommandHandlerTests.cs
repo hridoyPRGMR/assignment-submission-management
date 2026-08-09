@@ -3,6 +3,7 @@ using AssignmentSystem.Application.Tests.TestDoubles;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.Submissions;
@@ -21,7 +22,8 @@ public class CreateSubmissionCommandHandlerTests
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),
             new ReturnSubmissionForRevisionInputValidator(),
-            new UpdateSubmissionInputValidator());
+            new UpdateSubmissionInputValidator(),
+            NullLogger<SubmissionService>.Instance);
 
     private static (AssignmentSystem.Domain.Entities.Assignment Assignment, User Student) SeedPublishedAssignmentWithEnrolledStudent(
         AssignmentSystem.Infrastructure.Persistence.AppDbContext dbContext, bool enrollStudent = true)

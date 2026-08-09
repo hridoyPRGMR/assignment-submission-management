@@ -5,6 +5,7 @@ using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.Submissions;
@@ -23,7 +24,8 @@ public class GradeSubmissionCommandHandlerTests
             new CreateSubmissionInputValidator(),
             new GradeSubmissionInputValidator(),
             new ReturnSubmissionForRevisionInputValidator(),
-            new UpdateSubmissionInputValidator());
+            new UpdateSubmissionInputValidator(),
+            NullLogger<SubmissionService>.Instance);
 
     private static (Submission Submission, User OwningTeacher, User OtherTeacher) SeedGradeableSubmission(AppDbContext dbContext)
     {
@@ -94,5 +96,24 @@ public class GradeSubmissionCommandHandlerTests
             new GradeSubmissionInput(submission.Id, owningTeacher.Id, 150, "Nice work"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("between 0 and");
+        submission.Status.Should().Be(SubmissionStatus.Submitted);
+        submission.Marks.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Grade_with_negative_marks_should_fail()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+        var (submission, owningTeacher, _) = SeedGradeableSubmission(dbContext);
+
+        var service = CreateService(dbContext);
+
+        var result = await service.GradeAsync(
+            new GradeSubmissionInput(submission.Id, owningTeacher.Id, -1, "Nice work"), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        submission.Status.Should().Be(SubmissionStatus.Submitted);
+        submission.Marks.Should().BeNull();
     }
 }

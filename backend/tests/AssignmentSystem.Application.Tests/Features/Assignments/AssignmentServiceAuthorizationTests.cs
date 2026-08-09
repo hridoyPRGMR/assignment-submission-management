@@ -4,6 +4,7 @@ using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.Assignments;
@@ -20,7 +21,8 @@ public class AssignmentServiceAuthorizationTests
             new StudentEnrollmentRepository(dbContext),
             dbContext,
             new CreateAssignmentInputValidator(),
-            new UpdateAssignmentInputValidator());
+            new UpdateAssignmentInputValidator(),
+            NullLogger<AssignmentService>.Instance);
 
     private static (Assignment Assignment, User OwningTeacher, User OtherTeacher) SeedAssignment(AppDbContext dbContext)
     {

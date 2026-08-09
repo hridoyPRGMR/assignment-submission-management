@@ -2,6 +2,7 @@ using AssignmentSystem.Application.Features.Assignments;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.Assignments;
@@ -18,7 +19,8 @@ public class CreateAssignmentCommandHandlerTests
             new AssignmentSystem.Infrastructure.Persistence.Repositories.StudentEnrollmentRepository(dbContext),
             dbContext,
             new CreateAssignmentInputValidator(),
-            new UpdateAssignmentInputValidator());
+            new UpdateAssignmentInputValidator(),
+            NullLogger<AssignmentService>.Instance);
 
     [Fact]
     public async Task Create_when_teacher_is_not_assigned_to_class_and_subject_should_fail()

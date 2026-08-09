@@ -41,6 +41,33 @@ public class SubmissionTests
     }
 
     [Fact]
+    public void Create_exactly_at_the_deadline_instant_should_not_be_late()
+    {
+        // IsLate is computed as `nowUtc > deadlineUtc`, so the exact same instant is on-time,
+        // not late — this pins down the boundary explicitly rather than relying on a wide margin.
+        var deadline = Now;
+
+        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, null, null, null, deadline, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(SubmissionStatus.Submitted);
+        result.Value.IsLate.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Create_one_tick_after_the_deadline_instant_should_be_late()
+    {
+        var deadline = Now;
+        var submittedAt = Now.AddTicks(1);
+
+        var result = Submission.Create(AssignmentId, StudentId, "My answer", null, null, null, null, deadline, submittedAt);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(SubmissionStatus.LateSubmission);
+        result.Value.IsLate.Should().BeTrue();
+    }
+
+    [Fact]
     public void Create_with_empty_content_should_fail()
     {
         var result = Submission.Create(AssignmentId, StudentId, "   ", null, null, null, null, Now.AddDays(1), Now);

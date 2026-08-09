@@ -8,6 +8,7 @@ import { dashboardApi } from "@/features/dashboard/dashboardApi";
 import { useAuth } from "@/features/auth/AuthContext";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AssignmentStatusBadge } from "@/components/status-badge";
 import { formatDateTime, formatRelativeDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -95,12 +96,11 @@ export default function StudentDashboardPage() {
         </div>
 
         {upcoming.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-12 text-center shadow-sm">
-            <p className="text-sm font-medium text-foreground">No assignments yet</p>
-            <p className="text-sm text-muted-foreground">
-              New assignments will appear here when your teachers publish them.
-            </p>
-          </div>
+          <EmptyState
+            title="No assignments yet"
+            description="New assignments will appear here when your teachers publish them."
+            className="py-12"
+          />
         ) : (
           <div className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             {upcoming.map((assignment, index) => {

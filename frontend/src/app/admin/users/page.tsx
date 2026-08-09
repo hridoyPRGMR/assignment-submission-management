@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -12,14 +12,17 @@ import type { AdminUser } from "@/types/admin";
 import type { UserRole } from "@/types/auth";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -436,58 +439,55 @@ export default function AdminUsersPage() {
         </DrawerContent>
       </Drawer>
 
-      <Dialog
+      <AlertDialog
         open={deleteTarget != null}
         onOpenChange={(value) => {
           if (!value && !deleteMutation.isPending) setDeleteTarget(null);
         }}
       >
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete user</DialogTitle>
-            <DialogDescription>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user</AlertDialogTitle>
+            <AlertDialogDescription>
               Are you sure you want to delete{" "}
               <span className="font-medium text-foreground">{deleteTarget?.fullName}</span>? This
               action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
 
-          <DialogFooter className="sm:justify-end">
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
 
-            <Button
+            <AlertDialogAction
               variant="destructive"
               disabled={deleteMutation.isPending}
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {isLoading ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading users...</p>
-        </div>
+        <TableSkeleton columns={4} />
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
-          <p className="text-sm font-medium text-foreground">
-            {debouncedSearch
+        <EmptyState
+          title={
+            debouncedSearch
               ? "No users found"
               : roleFilter !== "all"
                 ? "No users found"
-                : "No users yet"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {debouncedSearch
+                : "No users yet"
+          }
+          description={
+            debouncedSearch
               ? "Try adjusting your search to find what you're looking for."
               : roleFilter !== "all"
                 ? "Try a different role filter."
-                : "Create your first user to get started."}
-          </p>
-        </div>
+                : "Create your first user to get started."
+          }
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">

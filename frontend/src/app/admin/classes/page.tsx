@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -16,6 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { toast } from "@/components/ui/toast";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { DataTable } from "./data-table";
 import { getColumns } from "./columns";
@@ -217,21 +219,16 @@ export default function AdminClassesPage() {
       )}
 
       {isLoading ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-24">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading classes...</p>
-        </div>
+        <TableSkeleton columns={3} />
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
-          <p className="text-sm font-medium text-foreground">
-            {search ? "No classes found" : "No classes yet"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {search
+        <EmptyState
+          title={search ? "No classes found" : "No classes yet"}
+          description={
+            search
               ? "Try adjusting your search to find what you're looking for."
-              : "Create your first class to get started."}
-          </p>
-        </div>
+              : "Create your first class to get started."
+          }
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">

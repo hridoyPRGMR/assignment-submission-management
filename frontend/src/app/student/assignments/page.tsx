@@ -2,12 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
 import { assignmentsApi } from "@/features/assignments/assignmentsApi";
 import { submissionsApi } from "@/features/submissions/submissionsApi";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { DataTable } from "./data-table";
 import { getColumns } from "./columns";
-import { cn } from "@/lib/utils";
 import type { Assignment } from "@/types/assignment";
 import type { Submission } from "@/types/submission";
 
@@ -89,39 +90,27 @@ export default function StudentAssignmentsPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {filters.map((filterOption) => (
-          <button
-            key={filterOption.key}
-            onClick={() => setFilter(filterOption.key)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-              filter === filterOption.key
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-          >
-            {filterOption.label} ({counts[filterOption.key]})
-          </button>
-        ))}
-      </div>
+      <Tabs value={filter} onValueChange={(value) => setFilter(value as FilterKey)}>
+        <TabsList className="h-auto flex-wrap">
+          {filters.map((filterOption) => (
+            <TabsTrigger key={filterOption.key} value={filterOption.key}>
+              {filterOption.label} ({counts[filterOption.key]})
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {assignmentsQuery.isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-24">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading assignments...</p>
-        </div>
+        <TableSkeleton columns={4} />
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
-          <p className="text-sm font-medium text-foreground">
-            {isEmpty ? "No assignments yet" : "No assignments match this filter"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {isEmpty
+        <EmptyState
+          title={isEmpty ? "No assignments yet" : "No assignments match this filter"}
+          description={
+            isEmpty
               ? "Assignments published by your teachers will appear here."
-              : "Try a different filter."}
-          </p>
-        </div>
+              : "Try a different filter."
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <DataTable columns={columns} data={items} />

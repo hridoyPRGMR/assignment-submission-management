@@ -17,6 +17,8 @@ import { dashboardApi } from "@/features/dashboard/dashboardApi";
 import { useAuth } from "@/features/auth/AuthContext";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { EmptyState } from "@/components/ui/empty-state";
 import { AssignmentStatusBadge } from "@/components/status-badge";
 import { formatDateTime } from "@/lib/format";
 
@@ -115,12 +117,11 @@ export default function TeacherDashboardPage() {
             Loading assignments...
           </div>
         ) : recent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-12 text-center shadow-sm">
-            <p className="text-sm font-medium text-foreground">No assignments yet</p>
-            <p className="text-sm text-muted-foreground">
-              Create your first assignment to get started.
-            </p>
-          </div>
+          <EmptyState
+            title="No assignments yet"
+            description="Create your first assignment to get started."
+            className="py-12"
+          />
         ) : (
           <div className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
             {recent.map((assignment, index) => (
@@ -142,16 +143,23 @@ export default function TeacherDashboardPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <AssignmentStatusBadge status={assignment.lifecycleStatus} />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    nativeButton={false}
-                    className="hover:bg-muted"
-                    render={<Link href={`/teacher/assignments/${assignment.id}`} />}
-                    aria-label={`Edit ${assignment.title}`}
-                  >
-                    <Pencil />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          nativeButton={false}
+                          className="hover:bg-muted"
+                          render={<Link href={`/teacher/assignments/${assignment.id}`} />}
+                          aria-label={`Edit ${assignment.title}`}
+                        />
+                      }
+                    >
+                      <Pencil />
+                    </TooltipTrigger>
+                    <TooltipContent>Edit assignment</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))}

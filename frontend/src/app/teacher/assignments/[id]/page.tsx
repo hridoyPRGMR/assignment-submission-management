@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
@@ -17,6 +17,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AssignmentStatusBadge } from "@/components/status-badge";
 import { toast } from "@/components/ui/toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDateTime } from "@/lib/format";
 
 const assignmentSchema = z.object({
@@ -40,6 +50,7 @@ export default function TeacherAssignmentDetailPage() {
   const assignmentId = params.id;
   const queryClient = useQueryClient();
   const router = useRouter();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const assignmentQuery = useQuery({
     queryKey: ["assignments", assignmentId],
@@ -183,11 +194,7 @@ export default function TeacherAssignmentDetailPage() {
               <Button
                 type="button"
                 variant="destructive"
-                onClick={() => {
-                  if (window.confirm("Delete this assignment? This cannot be undone.")) {
-                    deleteMutation.mutate();
-                  }
-                }}
+                onClick={() => setDeleteOpen(true)}
                 disabled={deleteMutation.isPending}
               >
                 <Trash2 />
@@ -206,6 +213,35 @@ export default function TeacherAssignmentDetailPage() {
           </form>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(value) => {
+          if (!value && !deleteMutation.isPending) setDeleteOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete assignment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">{assignment?.title}</span>? This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

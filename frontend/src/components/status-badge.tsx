@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import type { AssignmentLifecycleStatus } from "@/types/assignment";
 import type { SubmissionStatus } from "@/types/submission";
 
@@ -31,27 +32,17 @@ const submissionStatusConfig: Record<SubmissionStatus, { label: string; tone: st
 export function AssignmentStatusBadge({ status }: { status: AssignmentLifecycleStatus }) {
   const config = assignmentStatusConfig[status];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-        toneStyles[config.tone],
-      )}
-    >
+    <Badge variant="outline" className={cn("border-transparent", toneStyles[config.tone])}>
       {config.label}
-    </span>
+    </Badge>
   );
 }
 
 export function SubmissionStatusBadge({ status }: { status: SubmissionStatus }) {
   const config = submissionStatusConfig[status];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-        toneStyles[config.tone],
-      )}
-    >
+    <Badge variant="outline" className={cn("border-transparent", toneStyles[config.tone])}>
       {config.label}
-    </span>
+    </Badge>
   );
 }

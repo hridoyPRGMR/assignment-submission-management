@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { assignmentsApi } from "@/features/assignments/assignmentsApi";
 import { teacherAssignmentsApi } from "@/features/teacherAssignments/teacherAssignmentsApi";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,22 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/table-skeleton";
 import { DataTable } from "./data-table";
 import { getColumns } from "./columns";
-import { cn } from "@/lib/utils";
 import type { AssignmentLifecycleStatus } from "@/types/assignment";
 
 const assignmentSchema = z.object({
@@ -84,6 +96,7 @@ export default function TeacherAssignmentsPage() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const assignmentsQuery = useQuery({
     queryKey: ["assignments", "mine"],
@@ -165,9 +178,13 @@ export default function TeacherAssignmentsPage() {
     mutationFn: (id: string) => assignmentsApi.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments", "mine"] });
+      setDeleteTargetId(null);
       toast.add({ type: "success", title: "Assignment deleted" });
     },
-    onError: () => toast.add({ type: "error", title: "Could not delete assignment" }),
+    onError: () => {
+      setDeleteTargetId(null);
+      toast.add({ type: "error", title: "Could not delete assignment" });
+    },
   });
 
   const columns = useMemo(
@@ -177,11 +194,7 @@ export default function TeacherAssignmentsPage() {
         onUnpublish: (id) => unpublishMutation.mutate(id),
         onMarkGraded: (id) => markGradedMutation.mutate(id),
         onArchive: (id) => archiveMutation.mutate(id),
-        onDelete: (id) => {
-          if (window.confirm("Delete this assignment? This cannot be undone.")) {
-            deleteMutation.mutate(id);
-          }
-        },
+        onDelete: (id) => setDeleteTargetId(id),
         pendingId,
       }),
     [
@@ -211,22 +224,15 @@ export default function TeacherAssignmentsPage() {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {filters.map((filterOption) => (
-            <button
-              key={filterOption.key}
-              onClick={() => setFilter(filterOption.key)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-                filter === filterOption.key
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {filterOption.label}
-            </button>
-          ))}
-        </div>
+        <Tabs value={filter} onValueChange={(value) => setFilter(value as string)}>
+          <TabsList>
+            {filters.map((filterOption) => (
+              <TabsTrigger key={filterOption.key} value={filterOption.key}>
+                {filterOption.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         <Drawer
           swipeDirection="right"
@@ -335,20 +341,46 @@ export default function TeacherAssignmentsPage() {
         </Drawer>
       </div>
 
+      <AlertDialog
+        open={deleteTargetId != null}
+        onOpenChange={(value) => {
+          if (!value && !deleteMutation.isPending) setDeleteTargetId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete assignment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">
+                {allItems.find((a) => a.id === deleteTargetId)?.title}
+              </span>
+              ? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteTargetId && deleteMutation.mutate(deleteTargetId)}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {assignmentsQuery.isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-24">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading assignments...</p>
-        </div>
+        <TableSkeleton columns={5} />
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
-          <p className="text-sm font-medium text-foreground">
-            {isEmpty ? "No assignments yet" : "No assignments match this filter"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {isEmpty ? "Create your first assignment to get started." : "Try a different filter."}
-          </p>
-        </div>
+        <EmptyState
+          title={isEmpty ? "No assignments yet" : "No assignments match this filter"}
+          description={
+            isEmpty ? "Create your first assignment to get started." : "Try a different filter."
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <DataTable columns={columns} data={items} />

@@ -2,6 +2,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssignmentStatusBadge } from "@/components/status-badge";
 import { formatDateTime, formatRelativeDeadline } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -140,16 +141,23 @@ export function getColumns({
               </Button>
             )}
 
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="hover:bg-destructive/10 hover:text-destructive"
-              disabled={busy}
-              onClick={() => onDelete(assignment.id)}
-              aria-label={`Delete ${assignment.title}`}
-            >
-              <Trash2 />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                    disabled={busy}
+                    onClick={() => onDelete(assignment.id)}
+                    aria-label={`Delete ${assignment.title}`}
+                  />
+                }
+              >
+                <Trash2 />
+              </TooltipTrigger>
+              <TooltipContent>Delete assignment</TooltipContent>
+            </Tooltip>
           </div>
         );
       },

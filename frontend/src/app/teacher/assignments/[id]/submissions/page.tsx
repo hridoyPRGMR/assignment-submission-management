@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SubmissionStatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "@/components/ui/toast";
 import { formatDateTime, formatFileSize } from "@/lib/format";
 import type { Submission } from "@/types/submission";
@@ -131,12 +132,10 @@ export default function TeacherSubmissionsPage() {
       </div>
 
       {submissions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed bg-card px-4 py-24 text-center shadow-sm">
-          <p className="text-sm font-medium text-foreground">No submissions yet</p>
-          <p className="text-sm text-muted-foreground">
-            Student submissions will appear here once they are submitted.
-          </p>
-        </div>
+        <EmptyState
+          title="No submissions yet"
+          description="Student submissions will appear here once they are submitted."
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {submissions.map((submission) => {

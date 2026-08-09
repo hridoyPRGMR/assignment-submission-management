@@ -14,7 +14,7 @@ public abstract class ApiControllerBase : ControllerBase
             return NoContent();
         }
 
-        return Problem(statusCode: StatusCodes.Status400BadRequest, title: result.Error);
+        return MapFailure(result.ErrorType, result.Error!);
     }
 
     protected IActionResult HandleResult<T>(Result<T> result)
@@ -24,6 +24,13 @@ public abstract class ApiControllerBase : ControllerBase
             return Ok(result.Value);
         }
 
-        return Problem(statusCode: StatusCodes.Status400BadRequest, title: result.Error);
+        return MapFailure(result.ErrorType, result.Error!);
     }
+
+    private IActionResult MapFailure(ErrorType errorType, string error) => errorType switch
+    {
+        ErrorType.NotFound => Problem(statusCode: StatusCodes.Status404NotFound, title: error),
+        ErrorType.Forbidden => Problem(statusCode: StatusCodes.Status403Forbidden, title: error),
+        _ => Problem(statusCode: StatusCodes.Status400BadRequest, title: error),
+    };
 }

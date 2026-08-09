@@ -1,5 +1,4 @@
 const ACCESS_TOKEN_KEY = "assignment_system_access_token";
-const REFRESH_TOKEN_KEY = "assignment_system_refresh_token";
 const ROLE_COOKIE_KEY = "assignment_system_role";
 
 function setCookie(name: string, value: string, days: number) {
@@ -16,13 +15,8 @@ export const tokenStorage = {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(ACCESS_TOKEN_KEY);
   },
-  getRefreshToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
-  },
-  setTokens(accessToken: string, refreshToken: string, role: string) {
+  setTokens(accessToken: string, role: string) {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     setCookie(ROLE_COOKIE_KEY, role, 7);
   },
   setAccessToken(accessToken: string) {
@@ -30,7 +24,6 @@ export const tokenStorage = {
   },
   clear() {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
     clearCookie(ROLE_COOKIE_KEY);
   },
 };

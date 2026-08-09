@@ -17,20 +17,16 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(() => tokenStorage.getRefreshToken() !== null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const refreshToken = tokenStorage.getRefreshToken();
-
-    if (!refreshToken) {
-      return;
-    }
-
+    // The refresh token lives only in an httpOnly cookie, invisible to JS, so we can't check
+    // for its presence up front — just attempt a silent refresh and see if the cookie is valid.
     authApi
-      .refresh(refreshToken)
+      .refresh()
       .then((response) => {
-        tokenStorage.setTokens(response.accessToken, response.refreshToken, response.role);
+        tokenStorage.setTokens(response.accessToken, response.role);
         setUser({
           userId: response.userId,
           email: response.email,
@@ -46,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await authApi.login(email, password);
-    tokenStorage.setTokens(response.accessToken, response.refreshToken, response.role);
+    tokenStorage.setTokens(response.accessToken, response.role);
 
     const authUser: AuthUser = {
       userId: response.userId,
@@ -60,12 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = tokenStorage.getRefreshToken();
-
-    if (refreshToken) {
-      await authApi.logout(refreshToken).catch(() => undefined);
-    }
-
+    await authApi.logout().catch(() => undefined);
     tokenStorage.clear();
     setUser(null);
     router.push("/login");

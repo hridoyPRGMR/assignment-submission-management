@@ -4,9 +4,9 @@ import type { AuthResponse } from "@/types/auth";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5298/api/v1";
 
-export const apiClient = axios.create({ baseURL });
+export const apiClient = axios.create({ baseURL, withCredentials: true });
 
-const authlessClient = axios.create({ baseURL });
+const authlessClient = axios.create({ baseURL, withCredentials: true });
 
 apiClient.interceptors.request.use((config) => {
   const accessToken = tokenStorage.getAccessToken();
@@ -19,18 +19,9 @@ apiClient.interceptors.request.use((config) => {
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = tokenStorage.getRefreshToken();
-  if (!refreshToken) {
-    return null;
-  }
-
   try {
-    const response = await authlessClient.post<AuthResponse>("/auth/refresh", { refreshToken });
-    tokenStorage.setTokens(
-      response.data.accessToken,
-      response.data.refreshToken,
-      response.data.role,
-    );
+    const response = await authlessClient.post<AuthResponse>("/auth/refresh");
+    tokenStorage.setTokens(response.data.accessToken, response.data.role);
     return response.data.accessToken;
   } catch {
     tokenStorage.clear();

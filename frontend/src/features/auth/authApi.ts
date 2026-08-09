@@ -7,13 +7,13 @@ export const authApi = {
     return response.data;
   },
 
-  async refresh(refreshToken: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>("/auth/refresh", { refreshToken });
+  async refresh(): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>("/auth/refresh");
     return response.data;
   },
 
-  async logout(refreshToken: string): Promise<void> {
-    await apiClient.post("/auth/logout", { refreshToken });
+  async logout(): Promise<void> {
+    await apiClient.post("/auth/logout");
   },
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {

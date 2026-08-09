@@ -14,6 +14,7 @@
     - Copy example config: `cp backend/src/AssignmentSystem.Api/appsettings.Example.json backend/src/AssignmentSystem.Api/appsettings.Development.json`
     - Edit `ConnectionStrings:DefaultConnection` and `Jwt:SigningKey` (>=32 chars)
     - Run: `dotnet run --project backend/src/AssignmentSystem.Api`
+    - API listens on http://localhost:5298 (Swagger at `/swagger`) — see `backend/src/AssignmentSystem.Api/Properties/launchSettings.json` if you need to change it. `frontend/.env.example` already points `NEXT_PUBLIC_API_BASE_URL` at this port for local (non-Docker) runs.
   - Frontend:
     - `cd frontend`
     - `cp .env.example .env.local`
@@ -26,11 +27,11 @@ Role-based app: teachers create and grade assignments; students submit answers a
 
 ## Main features
 
-- Admin: manage users, classes, subjects, assign teachers, view system-wide data.
+- Admin: manage users, classes, subjects, assign teachers, browse all assignments/submissions system-wide, view system-wide dashboard data, change their own password.
 - Teacher: create/edit/publish assignments; review, download, grade, or return submissions.
 - Student: view published assignments, submit/update answers and files, view marks and feedback.
-- Auth: JWT access tokens + rotating refresh tokens; role-based and ownership authorization enforced.
-- File upload: PDF/DOCX/ZIP, server-side size and extension checks; stored on disk and served to authorized users only.
+- Auth: JWT access tokens + rotating, replay-resistant refresh tokens (stored in an httpOnly cookie, not accessible to JavaScript); role-based and ownership authorization enforced at both the API-policy and service layer; login is rate-limited.
+- File upload: PDF/DOCX/ZIP, server-side size and extension checks; stored on disk under a generated filename (no path traversal) and served to authorized users only.
 
 ## Technology stack
 
@@ -47,7 +48,7 @@ Role-based app: teachers create and grade assignments; students submit answers a
 - `backend/src/AssignmentSystem.Domain` — entities, state machines, business rules
 - `backend/src/AssignmentSystem.Infrastructure` — EF Core, repositories, storage, security
 - `frontend` — Next.js app (routes, components, API client)
-- `tests` — unit and integration tests for backend
+- `backend/tests` — unit and integration tests for the backend (`AssignmentSystem.Domain.Tests`, `AssignmentSystem.Application.Tests`, `AssignmentSystem.Api.Tests`)
 
 ## Database setup
 
@@ -69,13 +70,22 @@ Role-based app: teachers create and grade assignments; students submit answers a
 
 - Each user has one role: Admin, Teacher, or Student.
 - Teachers must be assigned to a class+subject before creating assignments.
-- A late submission is accepted and flagged `LateSubmission` rather than rejected.
+- **A late submission is accepted, not rejected.** We deliberately chose not to hard-block
+  submissions/updates after the deadline; instead the submission is created/updated normally
+  and flagged `IsLate`/`LateSubmission` so the teacher can see it was late and decide how to
+  grade it. This matches "submit an answer... update a submission... if allowed" from the
+  brief as "the platform allows it, but marks it," rather than closing the door entirely.
+- Login is rate-limited (5 attempts/minute per the app instance, configurable via
+  `RateLimiting:Login` in `appsettings.json`) — this is an in-memory limiter scoped to a single
+  process, not a distributed one.
 
 ## Known limitations
 
 - No automated frontend tests included.
 - No virus/malware scanning for uploaded files; only extension and size validated.
 - No automatic background job to mark deadlines; deadline state is computed.
+- The login rate limiter is per-process/in-memory; it resets on restart and isn't shared across
+  multiple backend instances behind a load balancer.
 
 ## Demo credentials (seeded in Development)
 

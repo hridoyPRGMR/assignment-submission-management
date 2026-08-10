@@ -1,9 +1,11 @@
 using AssignmentSystem.Application.Features.TeacherAssignments;
+using AssignmentSystem.Application.Tests.TestDoubles;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.TeacherAssignments;
@@ -13,7 +15,7 @@ public class TeacherAssignmentServiceTests
     private static readonly DateTime Now = DateTime.UtcNow;
     private static readonly Guid AdminId = Guid.NewGuid();
 
-    private static TeacherAssignmentService CreateService(AppDbContext dbContext) =>
+    private static TeacherAssignmentService CreateService(AppDbContext dbContext, ILogger<TeacherAssignmentService>? logger = null) =>
         new(
             new ClassSubjectRepository(dbContext),
             new ClassRepository(dbContext),
@@ -21,7 +23,8 @@ public class TeacherAssignmentServiceTests
             new TeacherAssignmentRepository(dbContext),
             new UserRepository(dbContext),
             dbContext,
-            new AssignTeacherInputValidator());
+            new AssignTeacherInputValidator(),
+            logger ?? new CapturingLogger<TeacherAssignmentService>());
 
     private static (Class Class, Subject Subject, User Teacher) SeedClassSubjectAndTeacher(AppDbContext dbContext)
     {
@@ -102,5 +105,43 @@ public class TeacherAssignmentServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("not an active teacher");
+    }
+
+    [Fact]
+    public async Task AssignAsync_on_success_should_log_the_assignment()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+        var (classEntity, subject, teacher) = SeedClassSubjectAndTeacher(dbContext);
+        var logger = new CapturingLogger<TeacherAssignmentService>();
+        var service = CreateService(dbContext, logger);
+
+        var result = await service.AssignAsync(
+            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Contain(e =>
+            e.Level == LogLevel.Information &&
+            e.Message.Contains(AdminId.ToString()) &&
+            e.Message.Contains(teacher.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task RemoveAsync_on_success_should_log_the_removal()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+        var (classEntity, subject, teacher) = SeedClassSubjectAndTeacher(dbContext);
+        var logger = new CapturingLogger<TeacherAssignmentService>();
+        var service = CreateService(dbContext, logger);
+
+        var assigned = await service.AssignAsync(
+            new AssignTeacherInput(teacher.Id, classEntity.Id, subject.Id), AdminId, CancellationToken.None);
+
+        var result = await service.RemoveAsync(assigned.Value.Id, AdminId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Contain(e =>
+            e.Level == LogLevel.Information &&
+            e.Message.Contains(AdminId.ToString()) &&
+            e.Message.Contains(assigned.Value.Id.ToString()));
     }
 }

@@ -44,7 +44,7 @@ public class TeacherAssignmentsController(ITeacherAssignmentService teacherAssig
     [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public async Task<IActionResult> RemoveTeacherAssignment(Guid id, CancellationToken cancellationToken)
     {
-        var result = await teacherAssignmentService.RemoveAsync(id, cancellationToken);
+        var result = await teacherAssignmentService.RemoveAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 }

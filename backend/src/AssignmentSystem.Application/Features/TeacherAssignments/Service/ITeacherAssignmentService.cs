@@ -8,5 +8,5 @@ public interface ITeacherAssignmentService
 
     Task<Result<IReadOnlyList<TeacherAssignmentDto>>> GetForTeacherAsync(Guid? teacherUserId, Guid? classId, Guid? subjectId, CancellationToken cancellationToken);
 
-    Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken);
+    Task<Result> RemoveAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken);
 }

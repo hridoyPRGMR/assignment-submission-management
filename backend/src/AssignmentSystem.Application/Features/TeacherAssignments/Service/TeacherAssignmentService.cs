@@ -4,6 +4,7 @@ using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.TeacherAssignments;
 
@@ -14,7 +15,8 @@ public class TeacherAssignmentService(
     ITeacherAssignmentRepository teacherAssignmentRepository,
     IUserRepository userRepository,
     IUnitOfWork unitOfWork,
-    IValidator<AssignTeacherInput> assignValidator)
+    IValidator<AssignTeacherInput> assignValidator,
+    ILogger<TeacherAssignmentService> logger)
     : ITeacherAssignmentService
 {
     public async Task<Result<TeacherAssignmentDto>> AssignAsync(AssignTeacherInput input, Guid actorUserId, CancellationToken cancellationToken)
@@ -64,6 +66,10 @@ public class TeacherAssignmentService(
         teacherAssignmentRepository.Add(teacherAssignment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation(
+            "Admin {ActorUserId} assigned teacher {TeacherUserId} to class {ClassId}/subject {SubjectId} (assignment {TeacherAssignmentId})",
+            actorUserId, input.TeacherUserId, input.ClassId, input.SubjectId, teacherAssignment.Id);
+
         return Result.Success(new TeacherAssignmentDto(
             teacherAssignment.Id,
             teacher.Id,
@@ -106,7 +112,7 @@ public class TeacherAssignmentService(
         return Result.Success<IReadOnlyList<TeacherAssignmentDto>>(items);
     }
 
-    public async Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Result> RemoveAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken)
     {
         var teacherAssignment = await teacherAssignmentRepository.Query().FirstOrDefaultAsync(ta => ta.Id == id, cancellationToken);
 
@@ -117,6 +123,8 @@ public class TeacherAssignmentService(
 
         teacherAssignmentRepository.Remove(teacherAssignment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Admin {ActorUserId} removed teacher assignment {TeacherAssignmentId}", actorUserId, id);
 
         return Result.Success();
     }

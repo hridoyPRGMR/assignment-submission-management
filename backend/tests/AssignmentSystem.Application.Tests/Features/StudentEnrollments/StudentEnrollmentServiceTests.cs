@@ -1,9 +1,11 @@
 using AssignmentSystem.Application.Features.StudentEnrollments;
+using AssignmentSystem.Application.Tests.TestDoubles;
 using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace AssignmentSystem.Application.Tests.Features.StudentEnrollments;
@@ -13,14 +15,15 @@ public class StudentEnrollmentServiceTests
     private static readonly DateTime Now = DateTime.UtcNow;
     private static readonly Guid AdminId = Guid.NewGuid();
 
-    private static StudentEnrollmentService CreateService(AppDbContext dbContext) =>
+    private static StudentEnrollmentService CreateService(AppDbContext dbContext, ILogger<StudentEnrollmentService>? logger = null) =>
         new(
             new ClassRepository(dbContext),
             new StudentEnrollmentRepository(dbContext),
             new SubmissionRepository(dbContext),
             new UserRepository(dbContext),
             dbContext,
-            new EnrollStudentInputValidator());
+            new EnrollStudentInputValidator(),
+            logger ?? new CapturingLogger<StudentEnrollmentService>());
 
     [Fact]
     public async Task EnrollAsync_when_already_enrolled_should_fail()
@@ -93,7 +96,7 @@ public class StudentEnrollmentServiceTests
 
         var service = CreateService(dbContext);
 
-        var result = await service.UnenrollAsync(enrollment.Id, CancellationToken.None);
+        var result = await service.UnenrollAsync(enrollment.Id, AdminId, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("Cannot unenroll");
@@ -115,8 +118,58 @@ public class StudentEnrollmentServiceTests
 
         var service = CreateService(dbContext);
 
-        var result = await service.UnenrollAsync(enrollment.Id, CancellationToken.None);
+        var result = await service.UnenrollAsync(enrollment.Id, AdminId, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EnrollAsync_on_success_should_log_the_enrollment()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var classEntity = Class.Create("Grade 10 - A", null, Now).Value;
+        var student = User.Create("student@school.edu", "hashed", "John Doe", UserRole.Student, Now).Value;
+
+        dbContext.Classes.Add(classEntity);
+        dbContext.Users.Add(student);
+        await dbContext.SaveChangesAsync();
+
+        var logger = new CapturingLogger<StudentEnrollmentService>();
+        var service = CreateService(dbContext, logger);
+
+        var result = await service.EnrollAsync(new EnrollStudentInput(student.Id, classEntity.Id), AdminId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Contain(e =>
+            e.Level == LogLevel.Information &&
+            e.Message.Contains(AdminId.ToString()) &&
+            e.Message.Contains(student.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task UnenrollAsync_on_success_should_log_the_removal()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var classEntity = Class.Create("Grade 10 - A", null, Now).Value;
+        var student = User.Create("student@school.edu", "hashed", "John Doe", UserRole.Student, Now).Value;
+        var enrollment = StudentEnrollment.Create(student.Id, classEntity.Id, Now);
+
+        dbContext.Classes.Add(classEntity);
+        dbContext.Users.Add(student);
+        dbContext.StudentEnrollments.Add(enrollment);
+        await dbContext.SaveChangesAsync();
+
+        var logger = new CapturingLogger<StudentEnrollmentService>();
+        var service = CreateService(dbContext, logger);
+
+        var result = await service.UnenrollAsync(enrollment.Id, AdminId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Contain(e =>
+            e.Level == LogLevel.Information &&
+            e.Message.Contains(AdminId.ToString()) &&
+            e.Message.Contains(enrollment.Id.ToString()));
     }
 }

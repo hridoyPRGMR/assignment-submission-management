@@ -33,7 +33,7 @@ public class StudentEnrollmentsController(IStudentEnrollmentService studentEnrol
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> UnenrollStudent(Guid id, CancellationToken cancellationToken)
     {
-        var result = await studentEnrollmentService.UnenrollAsync(id, cancellationToken);
+        var result = await studentEnrollmentService.UnenrollAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 }

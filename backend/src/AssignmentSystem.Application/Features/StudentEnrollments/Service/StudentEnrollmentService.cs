@@ -4,6 +4,7 @@ using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.StudentEnrollments;
 
@@ -13,7 +14,8 @@ public class StudentEnrollmentService(
     ISubmissionRepository submissionRepository,
     IUserRepository userRepository,
     IUnitOfWork unitOfWork,
-    IValidator<EnrollStudentInput> enrollValidator)
+    IValidator<EnrollStudentInput> enrollValidator,
+    ILogger<StudentEnrollmentService> logger)
     : IStudentEnrollmentService
 {
     public async Task<Result<StudentEnrollmentDto>> EnrollAsync(EnrollStudentInput input, Guid actorUserId, CancellationToken cancellationToken)
@@ -48,10 +50,14 @@ public class StudentEnrollmentService(
         studentEnrollmentRepository.Add(enrollment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation(
+            "Admin {ActorUserId} enrolled student {StudentUserId} in class {ClassId} (enrollment {EnrollmentId})",
+            actorUserId, input.StudentUserId, input.ClassId, enrollment.Id);
+
         return Result.Success(new StudentEnrollmentDto(enrollment.Id, student.Id, student.FullName, classEntity.Id, classEntity.Name));
     }
 
-    public async Task<Result> UnenrollAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Result> UnenrollAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken)
     {
         var enrollment = await studentEnrollmentRepository.Query().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
 
@@ -71,6 +77,8 @@ public class StudentEnrollmentService(
 
         studentEnrollmentRepository.Remove(enrollment);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Admin {ActorUserId} unenrolled enrollment {EnrollmentId}", actorUserId, id);
 
         return Result.Success();
     }

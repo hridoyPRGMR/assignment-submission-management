@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: assignment-system-api
+    runtime: docker
+    dockerfilePath: ./backend/src/AssignmentSystem.Api/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Jwt__Issuer
+        value: AssignmentSystem
+      - key: Jwt__Audience
+        value: AssignmentSystemClient
+      - key: Jwt__SigningKey
+        sync: false
+      - key: Jwt__AccessTokenMinutes
+        value: "30"
+      - key: Jwt__RefreshTokenDays
+        value: "7"
+      - key: Cors__AllowedOrigins__0
+        sync: false
+      - key: RateLimiting__Login__PermitLimit
+        value: "5"
+      - key: RateLimiting__Login__WindowSeconds
+        value: "60"
+      - key: DeadlineProcessing__PollingIntervalSeconds
+        value: "60"
+      - key: Database__ApplyMigrationsOnStartup
+        value: "true"
+      - key: Database__SeedDemoData
+        value: "true"

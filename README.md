@@ -21,6 +21,8 @@
     - `npm install`
     - `npm run dev`
 
+- Deploying to the cloud (Neon + Render + Vercel): see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Short overview
 
 Role-based app: teachers create and grade assignments; students submit answers and optional files; admins manage users, classes, and subjects.

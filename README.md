@@ -1,5 +1,10 @@
 # Assignment & Submission Management System
 
+## Live demo
+
+- App: https://assignment-management-two.vercel.app/login
+- Demo credentials: see *Demo credentials* below.
+
 ## Instructions for running the frontend and backend
 
 - Docker (recommended):

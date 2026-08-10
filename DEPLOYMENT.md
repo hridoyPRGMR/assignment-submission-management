@@ -64,6 +64,7 @@ You do not need to run any migration commands yourself; the backend applies them
    | Key | Value |
    |---|---|
    | `ASPNETCORE_ENVIRONMENT` | `Production` |
+   | `DOTNET_hostBuilder__reloadConfigOnChange` | `false` — Render's hosts cap inotify instances low enough that .NET's appsettings.json file-watcher can crash the app on startup with `IOException: configured user limit (128) on the number of inotify instances`. Disabling it is safe since nothing edits appsettings.json at runtime in a container. |
    | `ConnectionStrings__DefaultConnection` | the Npgsql string from step 1 |
    | `Jwt__Issuer` | `AssignmentSystem` |
    | `Jwt__Audience` | `AssignmentSystemClient` |
@@ -132,3 +133,5 @@ Now that you have the real Vercel URL:
 | 500 errors on startup / migration failures in Render logs | Connection string malformed — double check `Host`/`Username`/`Password` match Neon exactly, and that `SSL Mode=Require` is present. |
 | CORS errors in the browser console | `Cors__AllowedOrigins__0` not set, or set to the wrong URL, or the backend hasn't redeployed since you changed it. |
 | First request after idle is very slow | Expected — Render's free tier cold-starts. Not a bug. |
+| Deploy log shows "Application exited early" with `IOException: The configured user limit (128) on the number of inotify instances has been reached` | Set `DOTNET_hostBuilder__reloadConfigOnChange=false` (see the env var table above) — Render's inotify limit is too low for .NET's default appsettings.json file-watcher. |
+| Docker build fails with `"/src": not found` or similar checksum errors | Build context mismatch. If deploying manually (not via the `render.yaml` Blueprint), make sure **Root Directory** is blank and **Dockerfile Path** / **Docker Build Context Directory** are both set relative to the actual repo root (`backend/src/AssignmentSystem.Api/Dockerfile` and `backend` respectively) — using **New → Blueprint** avoids this class of error entirely. |

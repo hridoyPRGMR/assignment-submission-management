@@ -9,6 +9,12 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      # Render's shared hosts cap inotify instances low enough that .NET's config
+      # file-watcher (for appsettings.json hot-reload) can exhaust it and crash the
+      # app on startup. Nothing reloads appsettings.json at runtime in a container,
+      # so disabling this is safe.
+      - key: DOTNET_hostBuilder__reloadConfigOnChange
+        value: "false"
       - key: ConnectionStrings__DefaultConnection
         sync: false
       - key: Jwt__Issuer

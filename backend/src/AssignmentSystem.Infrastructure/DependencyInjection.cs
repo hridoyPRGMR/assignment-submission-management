@@ -1,5 +1,6 @@
 using AssignmentSystem.Application.Abstractions;
 using AssignmentSystem.Application.Abstractions.Persistence;
+using AssignmentSystem.Infrastructure.BackgroundServices;
 using AssignmentSystem.Infrastructure.Persistence;
 using AssignmentSystem.Infrastructure.Persistence.Repositories;
 using AssignmentSystem.Infrastructure.Security;
@@ -34,6 +35,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IFileStorageService, FileStorageService>();
+
+        services.AddHostedService<DeadlineProcessingService>();
 
         return services;
     }

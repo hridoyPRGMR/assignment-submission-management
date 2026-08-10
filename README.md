@@ -83,9 +83,23 @@ Role-based app: teachers create and grade assignments; students submit answers a
 
 - No automated frontend tests included.
 - No virus/malware scanning for uploaded files; only extension and size validated.
-- No automatic background job to mark deadlines; deadline state is computed.
 - The login rate limiter is per-process/in-memory; it resets on restart and isn't shared across
   multiple backend instances behind a load balancer.
+
+## Business-event logging and deadline processing
+
+- Beyond Serilog's HTTP access logging, the application layer emits structured business-event
+  log lines for meaningful admin/teacher actions (assignment created/published/graded/archived,
+  submission created/graded/returned, teacher assigned to a class/subject, student
+  enrolled/unenrolled, user created/role changed/deleted/activated), each including the acting
+  user's id and the affected entity id.
+- A `DeadlineProcessingService` background service (registered as an `IHostedService`, polling
+  every `DeadlineProcessing:PollingIntervalSeconds` — default 60s) periodically scans for
+  published assignments whose deadline has just passed and logs a summary business event
+  (late/total/missing submission counts) exactly once per assignment, using the same
+  `Assignment.GetLifecycleStatus` computation the read paths already use. This does not change
+  `Assignment.Status` automatically — marking an assignment "Graded" remains a deliberate teacher
+  action — it only makes the deadline-passed transition observable without a manual refresh.
 
 ## Demo credentials (seeded in Development)
 

@@ -3,6 +3,7 @@ using AssignmentSystem.Domain.Common;
 using AssignmentSystem.Domain.Entities;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.ClassSubjects;
 
@@ -12,7 +13,8 @@ public class ClassSubjectService(
     ISubjectRepository subjectRepository,
     ITeacherAssignmentRepository teacherAssignmentRepository,
     IUnitOfWork unitOfWork,
-    IValidator<AssignSubjectToClassInput> assignValidator) : IClassSubjectService
+    IValidator<AssignSubjectToClassInput> assignValidator,
+    ILogger<ClassSubjectService> logger) : IClassSubjectService
 {
     public async Task<Result<ClassSubjectDto>> AssignAsync(AssignSubjectToClassInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
@@ -46,6 +48,10 @@ public class ClassSubjectService(
         classSubjectRepository.Add(classSubject);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation(
+            "Admin {ActorUserId} associated subject {SubjectId} with class {ClassId} (class-subject {ClassSubjectId})",
+            actorUserId, input.SubjectId, input.ClassId, classSubject.Id);
+
         return Result.Success(new ClassSubjectDto(classSubject.Id, classEntity.Id, classEntity.Name, subject.Id, subject.Name));
     }
 
@@ -74,7 +80,7 @@ public class ClassSubjectService(
         return Result.Success<IReadOnlyList<ClassSubjectDto>>(items);
     }
 
-    public async Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<Result> RemoveAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken)
     {
         var classSubject = await classSubjectRepository.Query().FirstOrDefaultAsync(cs => cs.Id == id, cancellationToken);
 
@@ -93,6 +99,8 @@ public class ClassSubjectService(
 
         classSubjectRepository.Remove(classSubject);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Admin {ActorUserId} removed class-subject association {ClassSubjectId}", actorUserId, id);
 
         return Result.Success();
     }

@@ -33,7 +33,7 @@ public class ClassSubjectsController(IClassSubjectService classSubjectService) :
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> RemoveClassSubject(Guid id, CancellationToken cancellationToken)
     {
-        var result = await classSubjectService.RemoveAsync(id, cancellationToken);
+        var result = await classSubjectService.RemoveAsync(id, CurrentUserId, cancellationToken);
         return HandleResult(result);
     }
 }

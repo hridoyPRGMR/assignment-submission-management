@@ -6,6 +6,7 @@ using AssignmentSystem.Domain.Entities;
 using AssignmentSystem.Domain.Enums;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AssignmentSystem.Application.Features.Users;
 
@@ -18,7 +19,8 @@ public class UserService(
     IUnitOfWork unitOfWork,
     IPasswordHasher passwordHasher,
     IValidator<CreateUserInput> createValidator,
-    IValidator<UpdateUserInput> updateValidator) : IUserService
+    IValidator<UpdateUserInput> updateValidator,
+    ILogger<UserService> logger) : IUserService
 {
     public async Task<Result<UserDto>> CreateAsync(CreateUserInput input, Guid actorUserId, CancellationToken cancellationToken)
     {
@@ -47,6 +49,10 @@ public class UserService(
         userRepository.Add(userResult.Value);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation(
+            "Admin {ActorUserId} created user {UserId} with role {Role}",
+            actorUserId, userResult.Value.Id, userResult.Value.Role);
+
         return Result.Success(userResult.Value.ToDto());
     }
 
@@ -71,6 +77,9 @@ public class UserService(
         if (input.Role.HasValue)
         {
             user.ChangeRole(input.Role.Value, nowUtc, actorUserId);
+            logger.LogInformation(
+                "Admin {ActorUserId} changed role of user {UserId} to {Role}",
+                actorUserId, user.Id, input.Role.Value);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -100,6 +109,8 @@ public class UserService(
         userRepository.Remove(user);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
+        logger.LogInformation("Admin {ActorUserId} deleted user {UserId}", actorUserId, id);
+
         return Result.Success();
     }
 
@@ -122,6 +133,10 @@ public class UserService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Admin {ActorUserId} {Action} user {UserId}",
+            actorUserId, isActive ? "activated" : "deactivated", id);
 
         return Result.Success();
     }

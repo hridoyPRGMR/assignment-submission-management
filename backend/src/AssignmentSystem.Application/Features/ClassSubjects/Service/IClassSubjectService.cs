@@ -8,5 +8,5 @@ public interface IClassSubjectService
 
     Task<Result<IReadOnlyList<ClassSubjectDto>>> GetForClassAsync(Guid? classId, Guid? subjectId, CancellationToken cancellationToken);
 
-    Task<Result> RemoveAsync(Guid id, CancellationToken cancellationToken);
+    Task<Result> RemoveAsync(Guid id, Guid actorUserId, CancellationToken cancellationToken);
 }

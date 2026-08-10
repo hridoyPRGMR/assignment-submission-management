@@ -3,7 +3,10 @@
 ## Live demo
 
 - App: https://assignment-management-two.vercel.app/login
-- Demo credentials: see *Demo credentials* below.
+- Demo credentials:
+  - Admin: admin@school.edu / Admin@12345
+  - Teacher: teacher@school.edu / Teacher@12345
+  - Student: student@school.edu / Student@12345
 
 ## Instructions for running the frontend and backend
 
@@ -108,9 +111,7 @@ Role-based app: teachers create and grade assignments; students submit answers a
 
 ## Demo credentials (seeded in Development)
 
-- Admin: admin@school.edu / Admin@12345
-- Teacher: teacher@school.edu / Teacher@12345
-- Student: student@school.edu / Student@12345
+See *Live demo* at the top of this README.
 
 ---
 

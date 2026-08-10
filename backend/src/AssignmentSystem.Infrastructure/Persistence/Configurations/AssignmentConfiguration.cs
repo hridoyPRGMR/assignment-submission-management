@@ -19,6 +19,7 @@ public class AssignmentConfiguration : IEntityTypeConfiguration<Assignment>
         builder.Property(a => a.DeadlineUtc).IsRequired();
         builder.Property(a => a.CreatedAtUtc).IsRequired();
         builder.Property(a => a.UpdatedAtUtc).IsRequired();
+        builder.Property(a => a.DeadlineProcessedAtUtc);
 
         builder.HasIndex(a => new { a.ClassId, a.Status });
         builder.HasIndex(a => a.DeadlineUtc);

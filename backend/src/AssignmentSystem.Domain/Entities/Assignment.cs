@@ -17,6 +17,7 @@ public class Assignment : AuditableEntity
     public int MaxMarks { get; private set; }
     public AssignmentStatus Status { get; private set; }
     public bool IsDeleted { get; private set; }
+    public DateTime? DeadlineProcessedAtUtc { get; private set; }
 
     private Assignment() { }
 
@@ -203,5 +204,10 @@ public class Assignment : AuditableEntity
     {
         IsDeleted = true;
         TouchUpdated(nowUtc, actorUserId);
+    }
+
+    public void MarkDeadlineProcessed(DateTime nowUtc)
+    {
+        DeadlineProcessedAtUtc = nowUtc;
     }
 }

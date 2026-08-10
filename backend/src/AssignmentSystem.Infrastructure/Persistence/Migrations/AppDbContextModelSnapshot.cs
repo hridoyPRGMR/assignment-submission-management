@@ -37,6 +37,9 @@ namespace AssignmentSystem.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("DeadlineProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("DeadlineUtc")
                         .HasColumnType("timestamp with time zone");
 

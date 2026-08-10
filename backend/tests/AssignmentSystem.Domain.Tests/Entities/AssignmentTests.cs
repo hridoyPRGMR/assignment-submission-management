@@ -199,4 +199,20 @@ public class AssignmentTests
 
         result.IsFailure.Should().BeTrue();
     }
+
+    [Fact]
+    public void MarkDeadlineProcessed_should_set_the_timestamp_without_changing_status()
+    {
+        var deadline = Now.AddDays(1);
+        var assignment = CreateValidAssignment(deadline: deadline);
+        assignment.Publish(Now);
+        var processedAt = deadline.AddMinutes(1);
+
+        assignment.DeadlineProcessedAtUtc.Should().BeNull();
+
+        assignment.MarkDeadlineProcessed(processedAt);
+
+        assignment.DeadlineProcessedAtUtc.Should().Be(processedAt);
+        assignment.Status.Should().Be(AssignmentStatus.Published);
+    }
 }

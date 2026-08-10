@@ -23,9 +23,7 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    Console.WriteLine("A");
     var builder = WebApplication.CreateBuilder(args);
-    Console.WriteLine("B");
 
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
@@ -126,11 +124,7 @@ try
         });
     });
 
-    Console.WriteLine("C");
-
     var app = builder.Build();
-
-    Console.WriteLine("D");
 
     if (app.Environment.IsDevelopment())
     {
@@ -166,7 +160,7 @@ try
 
     app.MapControllers();
 
-    Console.WriteLine("E");
+    Console.WriteLine("Application started. Press Ctrl+C to shut down.");
 
     app.Run();
 }

@@ -101,7 +101,10 @@ public class AuthController(IAuthService authService, IWebHostEnvironment enviro
         {
             HttpOnly = true,
             Secure = !environment.IsDevelopment(),
-            SameSite = SameSiteMode.Lax,
+            // Frontend and API are deployed on different origins (e.g. Vercel + Render), so the
+            // cookie must be sent cross-site. SameSite=None requires Secure=true, which is already
+            // forced outside Development. Lax is kept for local dev where both run on localhost.
+            SameSite = environment.IsDevelopment() ? SameSiteMode.Lax : SameSiteMode.None,
             Expires = DateTimeOffset.UtcNow.AddDays(7),
             Path = "/",
         });

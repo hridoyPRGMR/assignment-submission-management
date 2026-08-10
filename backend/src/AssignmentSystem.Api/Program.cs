@@ -8,6 +8,7 @@ using AssignmentSystem.Infrastructure;
 using AssignmentSystem.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -126,15 +127,42 @@ try
 
     var app = builder.Build();
 
-    if (app.Environment.IsDevelopment())
+    // Defaults preserve the original dev-only behavior; a hosting platform (e.g. Render) can opt
+    // in via Database__ApplyMigrationsOnStartup / Database__SeedDemoData env vars so a freshly
+    // provisioned database (e.g. Neon) is ready without a manual migration step, and so the
+    // required demo accounts exist on the live deployment.
+    var applyMigrationsOnStartup = builder.Configuration.GetValue(
+        "Database:ApplyMigrationsOnStartup", app.Environment.IsDevelopment());
+    var seedDemoData = builder.Configuration.GetValue(
+        "Database:SeedDemoData", app.Environment.IsDevelopment());
+
+    if (applyMigrationsOnStartup || seedDemoData)
     {
         using var scope = app.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-        await dbContext.Database.MigrateAsync();
-        await DataSeeder.SeedAsync(dbContext, passwordHasher);
+        if (applyMigrationsOnStartup)
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+
+        if (seedDemoData)
+        {
+            var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+            await DataSeeder.SeedAsync(dbContext, passwordHasher);
+        }
     }
+
+    // Render (and most PaaS hosts) terminate TLS at a reverse proxy and forward plain HTTP,
+    // signalling the original scheme via X-Forwarded-*. Without this, UseHttpsRedirection() and
+    // any Request.IsHttps checks would see "http" and loop or misbehave. KnownNetworks/KnownProxies
+    // are cleared because the proxy's IP isn't fixed/known ahead of time on these platforms.
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+        KnownNetworks = { },
+        KnownProxies = { }
+    });
 
     app.UseSerilogRequestLogging();
 

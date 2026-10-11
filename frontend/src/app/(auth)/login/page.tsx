@@ -15,6 +15,14 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+type DemoAccount = { label: string; email: string; password: string };
+
+const demoAccounts: DemoAccount[] = [
+  { label: "Logged in as Admin", email: "admin@school.edu", password: "Admin@12345" },
+  { label: "Logged in as Teacher", email: "teacher@school.edu", password: "Teacher@12345" },
+  { label: "Logged in as Student", email: "student@school.edu", password: "Student@12345" },
+];
+
 const roleHomePage: Record<UserRole, string> = {
   Admin: "/admin",
   Teacher: "/teacher",
@@ -25,6 +33,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
   const {
     register,
@@ -32,14 +41,22 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
-  const onSubmit = async (values: LoginFormValues) => {
+  const signIn = async (email: string, password: string) => {
     setServerError(null);
     try {
-      const user = await login(values.email, values.password);
+      const user = await login(email, password);
       router.push(roleHomePage[user.role]);
     } catch {
       setServerError("Invalid email or password.");
     }
+  };
+
+  const onSubmit = (values: LoginFormValues) => signIn(values.email, values.password);
+
+  const demoLogin = async (account: DemoAccount) => {
+    setDemoLoading(account.label);
+    await signIn(account.email, account.password);
+    setDemoLoading(null);
   };
 
   return (
@@ -91,6 +108,25 @@ export default function LoginPage() {
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 text-xs text-neutral-500">
+            <span className="h-px flex-1 bg-neutral-200" />
+            Try the demo
+            <span className="h-px flex-1 bg-neutral-200" />
+          </div>
+          {demoAccounts.map((account) => (
+            <button
+              key={account.label}
+              type="button"
+              disabled={isSubmitting || demoLoading !== null}
+              onClick={() => demoLogin(account)}
+              className="w-full rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
+            >
+              {demoLoading === account.label ? "Signing in..." : account.label}
+            </button>
+          ))}
+        </div>
       </div>
     </main>
   );
